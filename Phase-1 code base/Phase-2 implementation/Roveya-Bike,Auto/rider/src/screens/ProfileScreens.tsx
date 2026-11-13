@@ -292,11 +292,6 @@ export function VehicleScreen({ navigation }: NativeStackScreenProps<CaptainStac
         <ListRow icon="shield-outline" label="Vehicle insurance" sub="Keep a valid policy in the vehicle" chevron={false} />
         <ListRow icon="leaf-outline" label="Pollution certificate" sub="Renew the PUC before it expires" chevron={false} />
         <ListRow icon="swap-horizontal-outline" label="Change vehicle" sub="Call the captain desk. They move this account to Bike, Auto, or Carpool." last onPress={() => void Linking.openURL(DESK_PHONE)} />
-      <SectionTitle>KEEP IT ROAD READY</SectionTitle>
-      <Group>
-        <ListRow icon="shield-outline" label="Vehicle insurance" sub="Keep a valid policy in the vehicle" chevron={false} />
-        <ListRow icon="leaf-outline" label="Pollution certificate" sub="Renew the PUC before it expires" chevron={false} />
-        <ListRow icon="swap-horizontal-outline" label="Change vehicle" sub="Call the captain desk with the new RC" last onPress={() => void Linking.openURL(DESK_PHONE)} />
       </Group>
     </PageShell>
   );

@@ -15,7 +15,6 @@ export const GET = route(async (req) => {
     .order("created_at", { ascending: false })
     .range(from, to);
   const status = get("status");
-  const status = get("status");
   if (status && ["review", "active", "suspended"].includes(status)) query = query.eq("status", status);
   // kind = bike | auto | taxi | carpool picks one service; the older service = seats | taxi | all still works.
   const kind = get("kind");
