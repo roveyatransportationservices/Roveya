@@ -1,0 +1,206 @@
+@import "tailwindcss";
+
+@theme {
+  --color-night: #12060d;
+  --color-inkwell: #1c0a14;
+  --color-paper: #241018;
+  --color-mist: #2a1220;
+  --color-plum: #3a1024;
+  --color-cherry: #4c102c;
+  --color-burgundy: #6b1838;
+  --color-cream: #f6f1dc;
+  --color-gold: #d6a000;
+  --color-gold-bright: #e0b23a;
+  --color-rose: #e58aa8;
+  --color-danger: #e8857f;
+  --color-success: #7fc79a;
+  --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-cormorant), "Palatino Linotype", Palatino, serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-night);
+  color: var(--color-cream);
+  font-family: var(--font-sans);
+  overflow-x: clip;
+}
+
+::selection {
+  background: var(--color-burgundy);
+  color: var(--color-cream);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 3px;
+}
+
+@layer components {
+  .kicker {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--color-gold);
+  }
+  .display {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.02;
+    font-variant-numeric: lining-nums;
+  }
+  .card {
+    border-radius: 1.5rem;
+    border: 1px solid rgba(214, 160, 0, 0.18);
+    background: var(--color-inkwell);
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.95rem;
+    background: var(--color-gold);
+    padding: 0.85rem 1.4rem;
+    font-weight: 600;
+    color: var(--color-night);
+    transition: transform 150ms ease, background 150ms ease, opacity 150ms ease;
+  }
+  .btn:hover {
+    background: var(--color-gold-bright);
+  }
+  .btn:active {
+    transform: scale(0.98);
+  }
+  .btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.95rem;
+    border: 1px solid rgba(214, 160, 0, 0.35);
+    padding: 0.8rem 1.3rem;
+    font-weight: 500;
+    color: var(--color-cream);
+    transition: border-color 150ms ease, background 150ms ease;
+  }
+  .btn-ghost:hover {
+    border-color: var(--color-gold);
+    background: rgba(214, 160, 0, 0.06);
+  }
+  .field {
+    width: 100%;
+    border-radius: 0.95rem;
+    border: 1px solid rgba(214, 160, 0, 0.22);
+    background: var(--color-night);
+    padding: 0.8rem 1rem;
+    color: var(--color-cream);
+    outline: none;
+    transition: border-color 150ms ease;
+  }
+  .field:focus {
+    border-color: var(--color-gold);
+  }
+  .field::placeholder {
+    color: rgba(246, 241, 220, 0.4);
+  }
+  .chip {
+    border-radius: 999px;
+    border: 1px solid rgba(214, 160, 0, 0.25);
+    padding: 0.45rem 0.95rem;
+    font-size: 0.85rem;
+    color: var(--color-cream);
+    transition: all 150ms ease;
+  }
+  .chip[data-on="true"] {
+    border-color: var(--color-gold);
+    background: var(--color-gold);
+    color: var(--color-night);
+  }
+  .skeleton {
+    border-radius: 0.75rem;
+    background: var(--color-mist);
+    animation: pulse 1.3s ease-in-out infinite;
+  }
+  .gold-line {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--color-gold), transparent);
+  }
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: rise 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes marquee {
+  to {
+    transform: translateX(calc(-50% - 0.625rem));
+  }
+}
+
+.marquee-track {
+  animation: marquee 60s linear infinite;
+}
+
+@media print {
+  @page {
+    size: A6 portrait;
+    margin: 0;
+  }
+  body {
+    background: #fff;
+  }
+  body > header,
+  body header.sticky,
+  footer,
+  .no-print {
+    display: none !important;
+  }
+  main {
+    min-height: 0 !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .marquee-track {
+    animation: none;
+  }
+  .marquee {
+    overflow-x: auto;
+  }
+}

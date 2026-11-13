@@ -1,0 +1,14 @@
+node_modules
+.next
+out
+dist
+.git
+.env
+.env.*
+!.env.example
+prisma
+*.md
+!README.md
+coverage
+npm-debug.log
+admin-desk

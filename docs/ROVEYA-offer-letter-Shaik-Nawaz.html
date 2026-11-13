@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>ROVEYA — Letter of offer, Shaik Nawaz</title>
+<style>
+  :root {
+    --night: #12060D;
+    --ink: #1C0A14;
+    --cherry: #4C102C;
+    --burgundy: #6B1838;
+    --cream: #F6F1DC;
+    --paper: #FBF8EC;
+    --gold: #D6A000;
+    --muted: #5A4650;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: #e9e3cc;
+    color: var(--ink);
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-size: 10.2pt;
+    line-height: 1.5;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  h1, h2, h3 { font-family: "Palatino Linotype", Palatino, "Times New Roman", serif; }
+  h1, h2, h3, p, ul, ol { margin: 0; }
+  @page { size: A4 portrait; margin: 0; }
+  .page {
+    width: 210mm;
+    height: 297mm;
+    margin: 0 auto 10mm;
+    position: relative;
+    overflow: hidden;
+    background: var(--paper);
+    display: flex;
+    flex-direction: column;
+    break-after: page;
+    page-break-after: always;
+  }
+  .page:last-child { break-after: auto; page-break-after: auto; }
+  @media print {
+    body { background: var(--paper); }
+    .page { margin: 0; }
+  }
+  @media screen {
+    .page { box-shadow: 0 10px 30px rgba(0,0,0,.18); }
+  }
+
+  .head {
+    background: var(--night);
+    color: var(--cream);
+    padding: 7mm 16mm 5.5mm;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1.4mm solid var(--gold);
+  }
+  .brand { display: flex; align-items: center; gap: 4mm; }
+  .brand svg { width: 14mm; height: 14mm; }
+  .word { font-weight: 600; font-size: 17pt; letter-spacing: 0.28em; }
+  .tag { margin-top: 1.2mm; color: var(--gold); font-size: 7.2pt; letter-spacing: 0.16em; text-transform: uppercase; }
+  .contact { text-align: right; font-size: 8.2pt; line-height: 1.6; color: rgba(246,241,220,.82); }
+  .contact b { color: var(--gold); font-weight: 600; letter-spacing: 0.1em; }
+
+  .body { flex: 1; min-height: 0; padding: 6.5mm 16mm 0 16mm; display: flex; flex-direction: column; }
+  .meta { display: flex; justify-content: space-between; font-size: 9.2pt; color: var(--muted); }
+  .meta b { color: var(--ink); font-weight: 600; }
+  .to { margin-top: 4mm; font-size: 10pt; line-height: 1.55; }
+  .to strong { font-size: 11pt; }
+  .subject {
+    margin-top: 4mm;
+    padding: 2.6mm 4.5mm;
+    background: var(--cream);
+    border-left: 1.2mm solid var(--burgundy);
+    font-weight: 600;
+    color: var(--cherry);
+    letter-spacing: 0.02em;
+  }
+  .lead { margin-top: 4mm; text-align: justify; }
+  .lead p + p { margin-top: 2.6mm; }
+
+  h3 {
+    margin-top: 4.5mm;
+    color: var(--burgundy);
+    font-size: 12pt;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 3mm;
+  }
+  h3 .n { color: var(--gold); font-size: 10pt; letter-spacing: 0.06em; }
+  h3::after { content: ""; flex: 1; height: 0.25mm; background: rgba(214,160,0,.55); }
+
+  .terms { margin-top: 2.4mm; width: 100%; border-collapse: collapse; font-size: 9.6pt; }
+  .terms td { padding: 1.4mm 3mm; border-bottom: 0.25mm solid rgba(107,24,56,.18); vertical-align: top; }
+  .terms td:first-child { width: 46mm; color: var(--muted); font-weight: 600; }
+  .blank { display: inline-block; min-width: 46mm; border-bottom: 0.3mm solid var(--ink); height: 4.6mm; vertical-align: bottom; }
+
+  .clause { margin-top: 2.2mm; font-size: 9.6pt; text-align: justify; }
+
+  ul.duties { margin-top: 2.6mm; padding-left: 0; list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 2.2mm 5mm; }
+  ul.duties li { padding: 2.3mm 3.2mm; background: var(--cream); border-radius: 1.6mm; font-size: 9pt; line-height: 1.42; }
+  ul.duties b { display: block; color: var(--burgundy); font-size: 9.4pt; margin-bottom: 0.5mm; }
+
+  .path {
+    margin-top: 2.6mm;
+    padding: 3.2mm 4.5mm;
+    border: 0.35mm solid var(--gold);
+    border-radius: 1.6mm;
+    background: #fff9e2;
+    font-size: 9.5pt;
+    text-align: justify;
+  }
+
+  .docs { margin-top: 2.6mm; display: flex; flex-wrap: wrap; gap: 1.8mm; }
+  .docs span { padding: 1.2mm 3mm; border: 0.3mm solid rgba(107,24,56,.35); border-radius: 10mm; font-size: 8.6pt; color: var(--cherry); }
+
+  .accept {
+    margin-top: 4mm;
+    padding: 3.2mm 4.5mm;
+    background: var(--cream);
+    border-radius: 1.6mm;
+    font-size: 9.5pt;
+  }
+
+  .signs { margin-top: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 12mm; padding-bottom: 6mm; }
+  .sign .space { height: 15mm; border-bottom: 0.35mm solid var(--ink); }
+  .sign .name { margin-top: 2mm; font-weight: 600; font-size: 10.2pt; }
+  .sign .role { font-size: 7.4pt; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold); font-weight: 700; margin-top: 0.6mm; }
+  .sign .date { margin-top: 2.6mm; font-size: 9pt; color: var(--muted); }
+
+  .foot {
+    background: var(--night);
+    color: rgba(246,241,220,.7);
+    font-size: 7.4pt;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 3.6mm 16mm;
+    display: flex;
+    justify-content: space-between;
+    border-top: 0.8mm solid var(--gold);
+  }
+  .foot b { color: var(--gold); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<section class="page">
+  <header class="head">
+    <div class="brand">
+      <svg viewBox="0 0 40 40" aria-hidden="true">
+        <rect x="1.5" y="1.5" width="37" height="37" rx="10" fill="none" stroke="#D6A000" stroke-width="1.2" />
+        <path d="M11 28V12h9.2c4.1 0 6.8 2.4 6.8 5.9 0 2.5-1.4 4.5-3.7 5.4L28.8 28h-4.3l-5.1-8.4H15.2V28H11Zm4.2-11.7h5c1.9 0 3.1-1.1 3.1-2.6S22.1 11.1 20.2 11.1h-5v5.2Z" fill="#F6F1DC" />
+        <path d="M8 32.5h24" stroke="#D6A000" stroke-width="1.4" stroke-linecap="round" />
+      </svg>
+      <div>
+        <div class="word">ROVEYA</div>
+        <div class="tag">Premium taxipool and travel</div>
+      </div>
+    </div>
+    <div class="contact">
+      <b>KHAMMAM, TELANGANA</b><br />
+      +91 90000 00001<br />
+      hello@roveya.com
+    </div>
+  </header>
+
+  <div class="body">
+    <div class="meta">
+      <span>Ref. <b>ROVEYA/HR/2026/001</b></span>
+      <span>Date <b>17 October 2026</b></span>
+    </div>
+
+    <div class="to">
+      <strong>Mr. Shaik Nawaz</strong><br />
+      <span class="blank" style="min-width:110mm"></span><br />
+      <span class="blank" style="min-width:110mm; margin-top:2mm"></span>
+    </div>
+
+    <div class="subject">Letter of offer — Operations Lead</div>
+
+    <div class="lead">
+      <p>Dear Mr. Nawaz,</p>
+      <p>Further to our discussions, we are pleased to offer you the position of <b>Operations Lead</b> with ROVEYA (“the Company”). We were impressed by your commitment and believe you will make a valuable contribution as the Company builds its operations. The terms of this offer are set out below.</p>
+    </div>
+
+    <h3><span class="n">01</span>Appointment</h3>
+    <table class="terms">
+      <tr><td>Designation</td><td>Operations Lead</td></tr>
+      <tr><td>Department</td><td>Operations</td></tr>
+      <tr><td>Reporting to</td><td>Founder and Chief Executive Officer</td></tr>
+      <tr><td>Employment type</td><td>Full-time, permanent</td></tr>
+      <tr><td>Place of work</td><td>Khammam, Telangana, with travel as the role requires</td></tr>
+      <tr><td>Date of joining</td><td><span class="blank"></span></td></tr>
+    </table>
+
+    <h3><span class="n">02</span>Compensation</h3>
+    <table class="terms">
+      <tr><td>Annual cost to company</td><td>₹ <span class="blank"></span> per annum</td></tr>
+      <tr><td>Payment</td><td>Monthly, by bank transfer, after statutory deductions</td></tr>
+      <tr><td>Official travel</td><td>Expenses on official duty are reimbursed as per Company policy</td></tr>
+    </table>
+
+    <h3><span class="n">03</span>Key responsibilities</h3>
+    <ul class="duties">
+      <li><b>Operations management</b>Plan and oversee day-to-day operations so that every service runs on schedule and to the Company’s standards.</li>
+      <li><b>Customer experience</b>Serve as the main point of contact for customers and resolve their concerns promptly and courteously.</li>
+      <li><b>Scheduling and coordination</b>Coordinate bookings, schedules, and resources with the operations desk and field staff.</li>
+      <li><b>Collections and reconciliation</b>Supervise payment collection, verify receipts, and reconcile accounts every day.</li>
+      <li><b>Compliance and safety</b>Keep permits and records current, and ensure that safety standards and Company policies are followed.</li>
+      <li><b>Reporting and planning</b>Submit regular performance reports and support management in planning growth and expansion.</li>
+    </ul>
+  </div>
+
+  <footer class="foot">
+    <span><b>ROVEYA</b> · Letter of offer · Confidential</span>
+    <span>Page 1 of 2</span>
+  </footer>
+</section>
+
+<section class="page">
+  <header class="head">
+    <div class="brand">
+      <svg viewBox="0 0 40 40" aria-hidden="true">
+        <rect x="1.5" y="1.5" width="37" height="37" rx="10" fill="none" stroke="#D6A000" stroke-width="1.2" />
+        <path d="M11 28V12h9.2c4.1 0 6.8 2.4 6.8 5.9 0 2.5-1.4 4.5-3.7 5.4L28.8 28h-4.3l-5.1-8.4H15.2V28H11Zm4.2-11.7h5c1.9 0 3.1-1.1 3.1-2.6S22.1 11.1 20.2 11.1h-5v5.2Z" fill="#F6F1DC" />
+        <path d="M8 32.5h24" stroke="#D6A000" stroke-width="1.4" stroke-linecap="round" />
+      </svg>
+      <div>
+        <div class="word">ROVEYA</div>
+        <div class="tag">Premium taxipool and travel</div>
+      </div>
+    </div>
+    <div class="contact">
+      <b>KHAMMAM, TELANGANA</b><br />
+      +91 90000 00001<br />
+      hello@roveya.com
+    </div>
+  </header>
+
+  <div class="body">
+    <h3 style="margin-top:0"><span class="n">04</span>Probation and confirmation</h3>
+    <p class="clause">You will be on probation for six months from your date of joining. On successful completion, your employment will be confirmed in writing.</p>
+
+    <h3><span class="n">05</span>Working hours and leave</h3>
+    <p class="clause">Your working hours will follow the Company’s operating schedule, with one weekly day off. Leave and public holidays follow the Company leave policy, which will be shared with you on joining.</p>
+
+    <h3><span class="n">06</span>Conduct, confidentiality, and Company property</h3>
+    <p class="clause">You will follow the Company’s code of conduct and treat customers and colleagues with respect at all times. Business information, customer data, pricing, and plans are confidential during and after your employment. Company funds, assets, and system access remain Company property, and you will account for them fully.</p>
+
+    <h3><span class="n">07</span>Notice and separation</h3>
+    <p class="clause">Either party may end this employment with thirty days’ written notice, or salary in lieu of notice. On separation, you will return all Company property and records.</p>
+
+    <h3><span class="n">08</span>Career progression</h3>
+    <div class="path">The Company intends to develop this role into <b>Director of Operations</b>. Your performance will be reviewed when your employment is confirmed. Appointment to the Board of Directors is subject to a Board resolution and applicable law, and any equity participation will be set out in a separate written agreement.</div>
+
+    <h3><span class="n">09</span>Documents to submit on joining</h3>
+    <div class="docs">
+      <span>Aadhaar card</span>
+      <span>PAN card</span>
+      <span>Educational certificates</span>
+      <span>Driving licence</span>
+      <span>Police verification certificate</span>
+      <span>Bank account details</span>
+      <span>Two passport-size photographs</span>
+    </div>
+
+    <div class="lead" style="margin-top:4.5mm">
+      <p>We look forward to welcoming you to ROVEYA. Please sign and return a copy of this letter by <span class="blank" style="min-width:36mm"></span> to confirm your acceptance.</p>
+      <p>Yours sincerely,<br />For <b>ROVEYA</b></p>
+    </div>
+
+    <div class="accept">
+      <b>Acceptance.</b> I have read and understood the terms of this letter, and I accept the position of Operations Lead with ROVEYA.
+    </div>
+
+    <div class="signs">
+      <div class="sign">
+        <div class="space"></div>
+        <div class="name">Shaik Asif Nawaz</div>
+        <div class="role">Founder and Chief Executive Officer</div>
+        <div class="date">Date: 17 October 2026</div>
+      </div>
+      <div class="sign">
+        <div class="space"></div>
+        <div class="name">Shaik Nawaz</div>
+        <div class="role">Operations Lead</div>
+        <div class="date">Date: <span class="blank" style="min-width:34mm"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="foot">
+    <span><b>ROVEYA</b> · Letter of offer · Confidential</span>
+    <span>Page 2 of 2</span>
+  </footer>
+</section>
+
+</body>
+</html>

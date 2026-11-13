@@ -1,0 +1,58 @@
+{
+  "expo": {
+    "name": "ROVEYA Captain",
+    "slug": "roveya-car-captains",
+    "scheme": "roveya-captains",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#12060D",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#12060D"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.roveya.carcaptains",
+      "infoPlist": {
+        "NSCameraUsageDescription": "ROVEYA uses the camera to photograph your licence, RC, insurance and car.",
+        "NSPhotoLibraryUsageDescription": "ROVEYA lets you pick photos of your documents and car."
+      }
+    },
+    "android": {
+      "package": "com.roveya.carcaptains",
+      "permissions": ["CAMERA", "POST_NOTIFICATIONS", "ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION", "ACCESS_BACKGROUND_LOCATION", "FOREGROUND_SERVICE", "FOREGROUND_SERVICE_LOCATION"],
+      "adaptiveIcon": {
+        "backgroundColor": "#12060D",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "name": "ROVEYA Captain",
+      "backgroundColor": "#12060D",
+      "themeColor": "#12060D"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "ROVEYA Captain shares the car's location during a trip so travellers, their families and the safety desk can follow it.",
+          "locationAlwaysAndWhenInUsePermission": "ROVEYA Captain keeps sharing the car's location during a trip, even with the app closed, so travellers and the safety desk can follow it. It stops when the trip ends.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true,
+          "isIosBackgroundLocationEnabled": true
+        }
+      ],
+      ["expo-image-picker", { "cameraPermission": "ROVEYA uses the camera to photograph your licence, RC, insurance and car." }],
+      ["expo-notifications", { "color": "#D6A000" }],
+      "expo-secure-store"
+    ],
+    "owner": "shaikasifnawaz"
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "expo": {
+    "name": "ROVEYA Captain",
+    "slug": "roveya-rider",
+    "scheme": "roveya-captain",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#12060D",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#12060D"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.roveya.rider",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "ROVEYA Captain uses your location while you are on duty to bring you nearby ride requests.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "ROVEYA Captain keeps sharing your location while you are on duty, even with the app closed, so nearby passengers can be matched to you. It stops when you go off duty.",
+        "NSCameraUsageDescription": "ROVEYA Captain uses the camera to photograph your licence, RC, and ID for verification.",
+        "NSPhotoLibraryUsageDescription": "ROVEYA Captain lets you pick a photo of your documents for verification."
+      }
+    },
+    "android": {
+      "package": "com.roveya.rider",
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION", "ACCESS_BACKGROUND_LOCATION", "FOREGROUND_SERVICE", "FOREGROUND_SERVICE_LOCATION", "CAMERA"],
+      "adaptiveIcon": {
+        "backgroundColor": "#12060D",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "ROVEYA Captain uses your location while you are on duty to bring you nearby ride requests.",
+          "locationAlwaysAndWhenInUsePermission": "ROVEYA Captain keeps sharing your location while you are on duty, even with the app closed, so nearby passengers can be matched to you. It stops when you go off duty.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true,
+          "isIosBackgroundLocationEnabled": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#D6A000"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "ROVEYA Captain uses the camera to photograph your licence, RC, and ID for verification.",
+          "photosPermission": "ROVEYA Captain lets you pick a photo of your documents for verification."
+        }
+      ],
+      "expo-secure-store"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "4d6515ab-18b5-4c33-aa37-da4c279816ba"
+      }
+    },
+    "owner": "shaikasifnawaz"
+  }
+}

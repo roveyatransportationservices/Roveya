@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>ROVEYA — Partner presentation, page by page</title>
+<style>
+  :root {
+    --night: #12060D;
+    --ink: #1C0A14;
+    --paper: #241018;
+    --cherry: #4C102C;
+    --burgundy: #6B1838;
+    --cream: #F6F1DC;
+    --gold: #D6A000;
+    --gold2: #E0B23A;
+    --line: rgba(214, 160, 0, 0.38);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: #070306;
+    color: var(--cream);
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.42;
+    font-variant-numeric: tabular-nums;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  h1, h2, .word, .tag, .stat b, .trio b, .step em {
+    font-family: "Palatino Linotype", Palatino, "Times New Roman", serif;
+  }
+  @page { size: A4 portrait; margin: 0; }
+  .page {
+    width: 210mm;
+    height: 297mm;
+    margin: 0 auto 10mm;
+    position: relative;
+    overflow: hidden;
+    background: var(--night);
+    color: var(--cream);
+    padding: 11mm 12mm 16mm 18mm;
+    display: flex;
+    flex-direction: column;
+    break-after: page;
+    page-break-after: always;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .page::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 7mm;
+    background: linear-gradient(180deg, var(--cherry) 0%, var(--burgundy) 55%, var(--gold) 100%);
+  }
+  @media print {
+    html, body { margin: 0; padding: 0; background: var(--night); }
+    .page { margin: 0; box-shadow: none; }
+  }
+  @media screen {
+    .page { box-shadow: 0 10px 36px rgba(0,0,0,.55); }
+  }
+  h1, h2, h3, p { margin: 0; }
+  .top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 6mm;
+    border-bottom: 1px solid var(--gold);
+    padding-bottom: 3.2mm;
+    margin-bottom: 4.5mm;
+  }
+  .kicker {
+    color: var(--gold);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-size: 7.6pt;
+    font-weight: 700;
+  }
+  h2 { font-size: 22pt; line-height: 1.08; letter-spacing: -0.015em; margin-top: 1.2mm; font-weight: 600; }
+  .badge {
+    width: auto; height: auto; flex: 0 0 auto;
+    border: 0; border-radius: 0;
+    display: block;
+    color: var(--gold); font-weight: 600; font-size: 11pt;
+    letter-spacing: 0.14em;
+    font-family: "Palatino Linotype", Palatino, serif;
+    padding-bottom: 1mm;
+  }
+  main { flex: 1; display: flex; flex-direction: column; min-height: 0; gap: 3.5mm; }
+  .grow { flex: 1; min-height: 0; }
+  .foot {
+    position: absolute;
+    left: 18mm; right: 12mm; bottom: 6mm;
+    display: flex; justify-content: space-between; align-items: center;
+    border-top: 1px solid var(--line);
+    padding-top: 2.2mm;
+    font-size: 8pt;
+    color: rgba(246, 241, 220, 0.72);
+    letter-spacing: 0.04em;
+  }
+  .say {
+    background: var(--ink);
+    border-left: 2px solid var(--gold);
+    border-radius: 0 2mm 2mm 0;
+    padding: 3.4mm 4.2mm;
+    font-family: "Palatino Linotype", Palatino, "Times New Roman", serif;
+    font-size: 12pt;
+    line-height: 1.45;
+  }
+  .say b { color: var(--gold2); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 3mm; }
+  .grid4 { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; }
+  .card {
+    background: var(--paper);
+    border: 1px solid rgba(214, 160, 0, 0.22);
+    border-left: 2.5px solid var(--gold);
+    border-radius: 1.6mm;
+    padding: 3.4mm 3.8mm;
+    height: 100%;
+  }
+  .card .lbl { display: block; color: var(--gold); font-size: 8pt; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 700; }
+  .card strong { display: block; color: var(--cream); font-size: 13pt; margin: 1mm 0 1mm; }
+  .card p { color: var(--cream); font-size: 10pt; }
+  .stat {
+    background: var(--cherry);
+    border-radius: 2.2mm;
+    padding: 3.5mm 4mm;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .stat .lbl { color: var(--gold2); font-size: 8pt; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 700; }
+  .stat b { display: block; font-size: 22pt; line-height: 1.05; margin: 1.5mm 0 1mm; }
+  .stat span { font-size: 10pt; }
+  table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+  th {
+    text-align: left; color: var(--gold); font-weight: 700;
+    padding: 2.2mm 2.4mm; border-bottom: 1px solid var(--gold); font-size: 8pt;
+    letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  td { padding: 2mm 2.4mm; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  tr:nth-child(even) td { background: rgba(76, 16, 44, 0.45); }
+  .flow {
+    display: flex; align-items: stretch; gap: 1.6mm; width: 100%;
+  }
+  .node {
+    flex: 1;
+    background: var(--paper);
+    border: 1px solid var(--gold);
+    border-radius: 2mm;
+    padding: 2.6mm 2.4mm;
+    text-align: center;
+  }
+  .node.on { background: var(--burgundy); }
+  .node .n { display: block; color: var(--gold); font-size: 8pt; font-weight: 700; letter-spacing: 0.08em; }
+  .node b { display: block; font-size: 11pt; margin: 0.6mm 0; }
+  .node p { font-size: 8.5pt; line-height: 1.25; }
+  .flow.grow .node { display: flex; flex-direction: column; justify-content: center; }
+  .cover-mid {
+    flex: 1; min-height: 0;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 2.4mm;
+  }
+  .ceo {
+    display: grid;
+    grid-template-columns: 64mm 1fr;
+    gap: 8mm;
+    align-items: stretch;
+  }
+  .ceo .shot {
+    width: 64mm;
+    height: 118mm;
+    border-radius: 1.5mm;
+    overflow: hidden;
+    background: #161616;
+    border: 1px solid var(--gold);
+  }
+  .ceo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: 30% 22%;
+    display: block;
+  }
+  .ceo .id {
+    min-height: 118mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 3mm;
+  }
+  .ceo .id h2 { font-size: 26pt; margin-top: 1.5mm; }
+  .ceo .role { color: var(--gold2); font-size: 11pt; margin-top: 2mm; }
+  .ceo .id p.note { font-size: 11pt; line-height: 1.45; }
+  .about-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 3mm;
+    align-items: stretch;
+  }
+  .about-cards .card { height: 100%; }
+  .signoff {
+    margin-top: auto;
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 3mm;
+  }
+  .signoff .pad { width: 70mm; }
+  .signoff .line { height: 16mm; border-bottom: 1px solid var(--gold); }
+  .signoff b {
+    display: block;
+    margin-top: 1.6mm;
+    font-family: "Palatino Linotype", Palatino, "Times New Roman", serif;
+    font-size: 12pt;
+    font-weight: 600;
+  }
+  .signoff span {
+    display: block;
+    margin-top: 0.4mm;
+    color: var(--gold2);
+    font-size: 8pt;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .cover-side { display: flex; flex-direction: column; gap: 2.2mm; min-height: 0; }
+  .cover-side .spoke { flex: 1; }
+  .chev { align-self: center; color: var(--gold); font-size: 14pt; font-weight: 700; }
+  .steps { display: flex; flex-direction: column; gap: 2.2mm; }
+  .step {
+    display: grid;
+    grid-template-columns: 10mm 1fr auto;
+    gap: 3mm;
+    align-items: center;
+    background: var(--paper);
+    border-radius: 2mm;
+    padding: 2.2mm 3mm;
+    border: 1px solid var(--line);
+  }
+  .step i {
+    width: 8mm; height: 8mm; border-radius: 50%;
+    background: var(--burgundy); color: var(--gold2);
+    display: flex; align-items: center; justify-content: center;
+    font-style: normal; font-weight: 700; font-size: 9pt;
+  }
+  .step b { font-size: 11pt; }
+  .step em { font-style: normal; color: var(--gold2); font-weight: 700; font-size: 12pt; }
+  .mark {
+    width: 16mm; height: 16mm; border: 1.5px solid var(--gold); border-radius: 3.4mm;
+    display: flex; align-items: flex-end; justify-content: center; position: relative;
+    background: var(--ink);
+  }
+  .mark span { font-size: 16pt; font-weight: 700; line-height: 1; margin-bottom: 3.2mm; }
+  .mark u { position: absolute; left: 3mm; right: 3mm; bottom: 2.4mm; height: 1.6px; background: var(--gold); text-decoration: none; }
+  .route {
+    display: grid;
+    grid-template-columns: 1fr 28mm 1fr;
+    align-items: center;
+    gap: 2mm;
+  }
+  .city {
+    background: var(--cherry);
+    border: 1px solid var(--gold);
+    border-radius: 2.5mm;
+    padding: 4mm;
+    text-align: center;
+    height: 100%;
+  }
+  .city b { display: block; font-size: 14pt; letter-spacing: 0.04em; }
+  .city span { display: block; margin-top: 1mm; color: var(--gold2); font-size: 10pt; }
+  .lane { text-align: center; color: var(--gold2); font-size: 9pt; font-weight: 700; letter-spacing: 0.04em; }
+  .lane .line { height: 2px; background: var(--gold); margin: 1.2mm 0; position: relative; }
+  .checks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2mm; }
+  .checks li {
+    background: var(--paper);
+    border-left: 4px solid var(--gold);
+    padding: 2.4mm 3mm;
+    border-radius: 1.5mm;
+    font-size: 10.5pt;
+  }
+  .bars { display: flex; flex-direction: column; gap: 2.4mm; justify-content: space-between; height: 100%; }
+  .bar { display: grid; grid-template-columns: 28mm 1fr auto; gap: 3mm; align-items: center; }
+  .bar b { color: var(--gold2); font-size: 9.5pt; }
+  .bar i { display: block; height: 8mm; background: linear-gradient(90deg, var(--cherry), var(--burgundy)); border-radius: 1.5mm; border: 1px solid var(--gold); }
+  .bar span { font-weight: 700; min-width: 28mm; text-align: right; }
+  .pillars { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; flex: 1; }
+  .pillar { background: var(--paper); border-radius: 1.6mm; padding: 4.5mm; border-left: 2.5px solid var(--gold); border-top: 0; display: flex; flex-direction: column; justify-content: center; }
+  .pillar .n { color: var(--gold); font-weight: 700; letter-spacing: 0.14em; font-size: 8pt; }
+  .pillar b { display: block; font-size: 13pt; margin: 1mm 0; }
+  .time { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; flex: 1; }
+  .stop {
+    display: grid;
+    grid-template-columns: 22mm 1fr;
+    background: var(--paper);
+    border-radius: 2.2mm;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    min-height: 0;
+  }
+  .stop .when {
+    background: var(--cherry);
+    color: var(--gold2);
+    display: flex; align-items: center; justify-content: center;
+    text-align: center; font-weight: 700; font-size: 9pt; letter-spacing: 0.04em;
+    padding: 2mm;
+  }
+  .stop div { padding: 3mm 3.5mm; display: flex; flex-direction: column; justify-content: center; }
+  .stop b { font-size: 12pt; }
+  .stop em { font-style: normal; color: var(--gold2); font-size: 10pt; }
+  .matrix th, .matrix td { text-align: center; }
+  .matrix td:first-child, .matrix th:first-child { text-align: left; }
+  .bigq { font-size: 20pt; line-height: 1.2; font-weight: 650; }
+  .trio { display: grid; grid-template-columns: 1fr; gap: 3mm; flex: 1; }
+  .trio div {
+    background: transparent;
+    border-left: 2px solid var(--gold);
+    border-radius: 0;
+    padding: 2.2mm 4.5mm;
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  .trio b { font-size: 16pt; letter-spacing: 0; font-weight: 600; }
+  .toc { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr; gap: 2.2mm 4mm; flex: 1; }
+  .toc a {
+    display: flex; gap: 3mm; align-items: center;
+    text-decoration: none; color: var(--cream);
+    background: var(--paper);
+    border-radius: 1.8mm;
+    padding: 2.2mm 3mm;
+    border: 1px solid var(--line);
+    font-size: 10.5pt;
+    height: 100%;
+  }
+  .toc a span { color: var(--gold); font-weight: 700; width: 8mm; }
+  .cover-hero { flex: 1; display: flex; flex-direction: column; justify-content: flex-start; gap: 3.2mm; min-height: 0; }
+  .cover-hero .map { flex: 1; min-height: 0; }
+  .spokes { height: 100%; }
+  .spoke { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+  .word { font-size: 40pt; letter-spacing: 0.08em; line-height: 0.92; font-weight: 600; }
+  .tag { font-size: 14pt; color: var(--gold2); margin-top: 1.5mm; }
+  .deck { font-size: 11.5pt; max-width: 165mm; margin-top: 2mm; }
+  .map {
+    display: grid;
+    grid-template-columns: 1fr 1.15fr 1fr;
+    gap: 3mm;
+    align-items: stretch;
+  }
+  .hub {
+    background: var(--burgundy);
+    border: 1.5px solid var(--gold);
+    border-radius: 3mm;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 4mm;
+  }
+  .hub b { font-size: 16pt; letter-spacing: 0.06em; }
+  .spokes { display: flex; flex-direction: column; gap: 2.2mm; }
+  .spoke {
+    background: var(--paper);
+    border-radius: 1.6mm;
+    padding: 2mm 3mm;
+    border-left: 2.5px solid var(--gold);
+    font-size: 10pt;
+  }
+  .spoke b { color: var(--gold2); }
+</style>
+</head>
+<body>
+
+<!-- 01 COVER -->
+<article class="page">
+  <header class="top">
+    <div style="display:flex;gap:4mm;align-items:center">
+      <div class="mark"><span>R</span><u></u></div>
+      <div>
+        <p class="kicker">Inter-city car mobility</p>
+        <p style="margin-top:1mm">Partner and investor presentation · 2026</p>
+      </div>
+    </div>
+    <div class="badge">01</div>
+  </header>
+  <main class="cover-hero">
+    <div>
+      <p class="kicker">Hyderabad launch base · Shaik Asif Nawaz, Founder and CEO</p>
+      <h1 class="word" style="font-size:42pt">ROVEYA</h1>
+      <p class="tag">Connecting cities. Moving people.</p>
+      <p class="deck">A phase-led operating model for building a scalable inter-city car transportation network. One route is proved, then the result is put into the next car.</p>
+    </div>
+    <div class="cover-mid">
+      <div class="spoke"><b>0–6 months · Car 1</b><br />Hyderabad ↔ Khammam. The founder drives and proves the route.</div>
+      <div class="spoke"><b>7–12 months · Car 2</b><br />Hyderabad ↔ Vijayawada. Two drivers hand the car over.</div>
+      <div class="spoke"><b>Year 2 · Car 3</b><br />A second Khammam car. The proved route is duplicated.</div>
+      <div class="spoke"><b>Year 3 · Car 4</b><br />Khammam ↔ Kottagudem. Short-route density.</div>
+      <div class="spoke"><b>Year 4 · Car 5</b><br />Hyderabad ↔ Karimnagar. A new corridor.</div>
+      <div class="spoke"><b>Year 5 · Car 6</b><br />The next city pair. The network extends.</div>
+    </div>
+    <div class="grid3">
+      <div class="stat"><span class="lbl">Phase 1 revenue</span><b>₹8.64L</b><span>Six months · Car 1</span></div>
+      <div class="stat"><span class="lbl">Phase 1 profit</span><b>₹3.60L</b><span>CEO salary excluded</span></div>
+      <div class="stat"><span class="lbl">Year 5 fleet</span><b>6 cars</b><span>Network expansion</span></div>
+  </div>
+  </main>
+  <footer class="foot"><span>Shaik Asif Nawaz · Founder and Chief Executive</span><span>Hyderabad · 2026</span></footer>
+</article>
+
+<!-- 02 CONTENTS -->
+<section class="page">
+  <header class="top">
+    <div><p class="kicker">How to read this book</p><h2>Contents</h2></div>
+    <div class="badge">02</div>
+  </header>
+  <main>
+    <p class="say">This book follows the 2026 partner presentation, page by page. Every figure is the one printed in that deck. The closing page describes ROVEYA as the passenger meets it.</p>
+    <nav class="toc">
+      <a href="#aim"><span>03</span> Aim and operating principle</a>
+      <a href="#ops"><span>04</span> Three phases and the operating system</a>
+      <a href="#road"><span>05</span> Roadmap, one route to six cars</a>
+      <a href="#p1"><span>06</span> Phase 1 route model</a>
+      <a href="#p1m"><span>07</span> Phase 1 daily, monthly, six-month count</a>
+      <a href="#work"><span>08</span> How the first route works</a>
+      <a href="#p2"><span>09</span> Phase 2 handover</a>
+      <a href="#p2m"><span>10</span> Vijayawada profit build</a>
+      <a href="#y2"><span>11</span> Year 2, the third car</a>
+      <a href="#prove"><span>12</span> What each stage must prove</a>
+      <a href="#rev"><span>13</span> Revenue architecture</a>
+      <a href="#cost"><span>14</span> Cost structure</a>
+      <a href="#profit"><span>15</span> Operating profit by phase</a>
+      <a href="#y35"><span>16</span> Years 3 to 5</a>
+      <a href="#five"><span>17</span> Five-year summary</a>
+      <a href="#ask"><span>18</span> The partnership, in the founder’s words</a>
+      <a href="#help"><span>19</span> What the partner helps build</a>
+      <a href="#vision"><span>20</span> The bigger vision</a>
+      <a href="#notes"><span>21</span> Assumptions</a>
+      <a href="#founder"><span>22</span> About ROVEYA</a>
+  </nav>
+  </main>
+  <footer class="foot"><span>ROVEYA · Connecting cities. Moving people.</span><span>02</span></footer>
+</section>
+
+<!-- 03 AIM -->
+<section class="page" id="aim">
+  <header class="top">
+    <div><p class="kicker">01 · Foundation</p><h2>Project aim</h2></div>
+    <div class="badge">03</div>
+  </header>
+  <main>
+    <p class="say">Build ROVEYA as a recognizable inter-city car transportation network — a network, rather than a single-car taxi operation. Start with one proved route, validate occupancy and route economics, then reinvest operating results into additional vehicles and routes.</p>
+    <div class="grid2 grow">
+      <div class="stat"><span class="lbl">Launch route</span><b>HYD ↔ Khammam</b><span>Car 1 · Phase 1 · founder drives</span></div>
+      <div class="stat"><span class="lbl">Phase 1 revenue</span><b>₹8.64 lakh</b><span>Six months</span></div>
+      <div class="stat"><span class="lbl">Phase 1 operating profit</span><b>₹3.60 lakh</b><span>CEO salary excluded</span></div>
+      <div class="stat"><span class="lbl">Year 5 fleet</span><b>6 cars</b><span>The network has expanded</span></div>
+    </div>
+    <div>
+      <p class="kicker" style="margin-bottom:2mm">Operating principle</p>
+      <div class="grid2">
+        <div class="card"><span class="lbl">01</span><strong>Prove before expanding</strong><p>The next car waits until this route holds.</p></div>
+        <div class="card"><span class="lbl">02</span><strong>Track the real economics</strong><p>CNG, toll, timing, and occupancy are written down.</p></div>
+        <div class="card"><span class="lbl">03</span><strong>Build repeat demand</strong><p>The same passengers come back to the same city pair.</p></div>
+        <div class="card"><span class="lbl">04</span><strong>Reinvest into the network</strong><p>Operating result funds the next vehicle and the next route.</p></div>
+      </div>
+  </div>
+  </main>
+  <footer class="foot"><span>ROVEYA · Inter-city car mobility</span><span>03</span></footer>
+</section>
+
+<!-- 04 OPERATING SYSTEM -->
+<section class="page" id="ops">
+  <header class="top">
+    <div><p class="kicker">02 · Operating model</p><h2>Three phases, one system</h2></div>
+    <div class="badge">04</div>
+  </header>
+  <main>
+    <div class="grid3">
+      <div class="card"><span class="lbl">Phase 1 · 0–6 months</span><strong>One car · Khammam</strong><p>Founder-driven launch. Validate the route and the occupancy.</p></div>
+      <div class="card"><span class="lbl">Phase 2 · 7–12 months</span><strong>Second car · Vijayawada</strong><p>Two-driver handover. Add capacity, then hand the driving over.</p></div>
+      <div class="card"><span class="lbl">Phase 3 · Year 2</span><strong>Third car · Khammam</strong><p>A three-car operating base. Build density on the proved route.</p></div>
+    </div>
+    <p class="kicker">Architecture · the operating system on every trip</p>
+    <div class="flow">
+      <div class="node"><span class="n">01</span><b>Demand</b><p>Passengers for that city pair, both directions.</p></div>
+      <div class="chev">→</div>
+      <div class="node"><span class="n">02</span><b>Dispatch</b><p>Route timing. The car leaves when the seats are set.</p></div>
+      <div class="chev">→</div>
+      <div class="node on"><span class="n">03</span><b>Travel</b><p>4 paying seats on the completed trip.</p></div>
+      <div class="chev">→</div>
+      <div class="node"><span class="n">04</span><b>Return</b><p>A balanced load back. The car does not return empty.</p></div>
+      <div class="chev">→</div>
+      <div class="node"><span class="n">05</span><b>Review</b><p>Cost and profit recorded before the next car is added.</p></div>
+  </div>
+    <p class="say">Read the row left to right. A trip counts only when demand, dispatch, travel, and the return all close. Review is the gate into the next phase. The founder drives the first car himself, writes down the real cost, and only then puts a second car on the road.</p>
+  </main>
+  <footer class="foot"><span>ROVEYA · Operating system</span><span>04</span></footer>
+</section>
+
+<!-- 05 ROADMAP -->
+<section class="page" id="road">
+  <header class="top">
+    <div><p class="kicker">03 · Roadmap</p><h2>From one route to six cars</h2></div>
+    <div class="badge">05</div>
+  </header>
+  <main>
+    <p class="say">The expansion rule is simple: prove the economics, learn the route, reinvest, then add capacity.</p>
+    <div class="time">
+      <div class="stop"><div class="when">0–6 M<br />CAR 1</div><div><b>Hyderabad ↔ Khammam</b><em>Founder proves the route. ₹600 a seat. ₹3.60 lakh in six months.</em></div></div>
+      <div class="stop"><div class="when">7–12 M<br />CAR 2</div><div><b>Hyderabad ↔ Vijayawada</b><em>Two-driver handover. ₹900 a seat. ₹3.36 lakh in six months.</em></div></div>
+      <div class="stop"><div class="when">YEAR 2<br />CAR 3</div><div><b>Hyderabad ↔ Khammam</b><em>Duplicate the proved route. One hired driver. ₹40,000 a month.</em></div></div>
+      <div class="stop"><div class="when">YEAR 3<br />CAR 4</div><div><b>Khammam ↔ Kottagudem</b><em>Short-route density. 3 trips a day. ₹250 a seat.</em></div></div>
+      <div class="stop"><div class="when">YEAR 4<br />CAR 5</div><div><b>Hyderabad ↔ Karimnagar</b><em>A new corridor. Monthly revenue in the model is ₹1.68 lakh.</em></div></div>
+      <div class="stop"><div class="when">YEAR 5<br />CAR 6</div><div><b>Next city pair</b><em>Network extension. Monthly revenue in the model is ₹1.44 lakh.</em></div></div>
+    </div>
+    <div class="flow">
+      <div class="node on"><span class="n">Prove</span><b>Economics</b></div>
+      <div class="chev">→</div>
+      <div class="node"><span class="n">Learn</span><b>The route</b></div>
+      <div class="chev">→</div>
+      <div class="node"><span class="n">Reinvest</span><b>The result</b></div>
+      <div class="chev">→</div>
+      <div class="node on"><span class="n">Add</span><b>Capacity</b></div>
+  </div>
+  </main>
+  <footer class="foot"><span>ROVEYA · Roadmap</span><span>05</span></footer>
+</section>
+
+<!-- 06 PHASE 1 -->
+<section class="page" id="p1">
+  <header class="top">
+    <div><p class="kicker">Phase 1 · 0–6 months · Launch and foundation</p><h2>Hyderabad ↔ Khammam</h2></div>
+    <div class="badge">06</div>
+  </header>
+  <main>
+    <div class="route">
+      <div class="city"><b>HYDERABAD</b><span>4 paying passengers<br />₹2,400 outbound</span></div>
+      <div class="lane">180 km<div class="line"></div>one way<div class="line"></div>2 trips / day</div>
+      <div class="city"><b>KHAMMAM</b><span>4 paying passengers<br />₹2,400 return</span></div>
+    </div>
+  <table>
+      <tr><th>Item</th><th>Printed on the slide</th><th>Item</th><th>Printed on the slide</th></tr>
+      <tr><td>Vehicle</td><td>CNG sedan or 5-seater XUV</td><td>Fare</td><td>₹600 a passenger</td></tr>
+      <tr><td>Paying seats</td><td>4 a trip</td><td>Daily movement</td><td>360 km</td></tr>
+      <tr><td>Operating days</td><td>30 a month</td><td>CNG use</td><td>30–33 km a kg</td></tr>
+    </table>
+    <div class="grid2 grow">
+      <div>
+        <p class="kicker" style="margin-bottom:2mm">Owner-led proof</p>
+        <ul class="checks">
+          <li>The CEO drives during Phase 1. No CEO salary is in the model.</li>
+          <li>Keep 4 passengers on the return movement.</li>
+          <li>Track CNG, toll, trip timing, and route-level cost.</li>
+          <li>Build repeat customers before Car 2.</li>
+        </ul>
+      </div>
+      <div class="stat"><span class="lbl">What this page is for</span><b>Prove Car 1</b><span>The founder is the driver. The route has to stay full in both directions, and the cost has to be known, before a second car is discussed.</span></div>
+    </div>
+  </main>
+  <footer class="foot"><span>ROVEYA · Phase 1 route model</span><span>06</span></footer>
+</section>
+
+<!-- 07 PHASE 1 MATH -->
+<section class="page" id="p1m">
+  <header class="top">
+    <div><p class="kicker">Phase 1 · Unit economics</p><h2>Daily, then monthly, then six months</h2></div>
+    <div class="badge">07</div>
+  </header>
+  <main>
+    <p class="say">Four passengers pay ₹600. That trip is <b>₹2,400</b>. The return is another four, so the day is <b>₹4,800</b>. CNG and toll take <b>₹2,800</b>. Thirty days leave <b>₹60,000</b> before any CEO salary. Six months of fares are <b>₹8.64 lakh</b>. Six months of CNG and toll are <b>₹5.04 lakh</b>. Operating profit is <b>₹3.60 lakh</b>.</p>
+    <div class="steps grow">
+      <div class="step"><i>1</i><b>4 × ₹600</b><em>₹2,400 a trip</em></div>
+      <div class="step"><i>2</i><b>Two trips in the day</b><em>₹4,800 a day</em></div>
+      <div class="step"><i>3</i><b>CNG and toll, ₹1,400 each way</b><em>₹2,800 a day</em></div>
+      <div class="step"><i>4</i><b>(₹4,800 − ₹2,800) × 30 days</b><em>₹60,000 a month</em></div>
+      <div class="step"><i>5</i><b>Revenue × 6 months · 4,800 × 30 × 6</b><em>₹8.64 lakh</em></div>
+      <div class="step"><i>6</i><b>CNG and toll × 6 · 2,800 × 30 × 6</b><em>₹5.04 lakh</em></div>
+      <div class="step"><i>7</i><b>₹8.64 lakh − ₹5.04 lakh</b><em>₹3.60 lakh</em></div>
+    </div>
+    <div class="grid3">
+      <div class="card"><span class="lbl">Distance</span><strong>10,800 km</strong><p>360 km × 30 days, each month.</p></div>
+      <div class="card"><span class="lbl">CNG</span><strong>327–360 kg</strong><p>At 30–33 km a kg.</p></div>
+      <div class="card"><span class="lbl">Six-month profit</span><strong>₹3.60 lakh</strong><p>Before CEO salary.</p></div>
+    </div>
+  </main>
+  <footer class="foot"><span>ROVEYA · Phase 1 count</span><span>07</span></footer>
+</section>
+
+<!-- 08 HOW THE ROUTE WORKS -->
+<section class="page" id="work">
+  <header class="top">
+    <div><p class="kicker">Phase 1 · Operations</p><h2>How the first route works</h2></div>
+    <div class="badge">08</div>
+  </header>
+  <main>
+    <div class="route">
+      <div class="city"><p class="kicker">Start</p><b>HYDERABAD</b><span>4 passengers<br />₹2,400</span></div>
+      <div class="lane">OUTBOUND<div class="line"></div>then<div class="line"></div>RETURN</div>
+      <div class="city"><p class="kicker">Turn</p><b>KHAMMAM</b><span>4 passengers<br />₹2,400</span></div>
+    </div>
+    <div class="grid2">
+      <div class="card"><span class="lbl">Demand</span><strong>Secure 4 return passengers</strong><p>The day only balances when Khammam sends four paying seats back.</p></div>
+      <div class="card"><span class="lbl">Drive</span><strong>360 km of daily movement</strong><p>180 km out and 180 km back. That is the two trips.</p></div>
+      <div class="card"><span class="lbl">Cost</span><strong>₹2,800 CNG and toll</strong><p>₹1,400 each way, recorded against this route.</p></div>
+      <div class="card"><span class="lbl">Learn</span><strong>Record the actual route</strong><p>Timing, fill, fuel, and toll, written before anyone talks about Car 2.</p></div>
+    </div>
+    <p class="say"><b>Decision gate.</b> Expand only after the route is consistently occupied and economically understood. The founder is in the driving seat for these six months. Four seats out, four seats back, CNG and toll written against the day, and repeat passengers before anyone discusses Car 2.</p>
+  </main>
+  <footer class="foot"><span>ROVEYA · First route</span><span>08</span></footer>
+</section>
+
+<!-- 09 PHASE 2 -->
+<section class="page" id="p2">
+  <header class="top">
+    <div><p class="kicker">Phase 2 · 7–12 months · Growth</p><h2>Hyderabad ↔ Vijayawada</h2></div>
+    <div class="badge">09</div>
+  </header>
+  <main>
+    <div class="grid4">
+      <div class="card"><span class="lbl">Distance</span><strong>280 km one way</strong><p>560 km in the day.</p></div>
+      <div class="card"><span class="lbl">Fare</span><strong>₹900</strong><p>Each paying passenger.</p></div>
+      <div class="card"><span class="lbl">Seats and trips</span><strong>4 seats · 2 trips</strong><p>Same occupancy rule as Khammam.</p></div>
+      <div class="card"><span class="lbl">Drivers</span><strong>2 × ₹20,000</strong><p>₹40,000 a month.</p></div>
+    </div>
+    <p class="kicker">Handover flow · one driver does not run the full cycle</p>
+    <div class="flow">
+      <div class="node on"><span class="n">Driver 1</span><b>HYD → Vijayawada</b><p>4 passengers · 280 km</p></div>
+      <div class="chev">→</div>
+      <div class="node"><span class="n">Handover</span><b>The car changes hands</b><p>At the Vijayawada end</p></div>
+      <div class="chev">→</div>
+      <div class="node on"><span class="n">Driver 2</span><b>Vijayawada → HYD</b><p>4 passengers · 280 km</p></div>
+    </div>
+    <p class="say"><b>Safety principle.</b> No single driver is expected to continuously handle the full return cycle. Driver 1 takes the car from Hyderabad. Driver 2 brings it back. Each is paid ₹20,000 a month. Together that is ₹40,000, beside ₹4,000 a day for CNG and toll.</p>
+    <div class="grid2">
+      <div class="stat"><span class="lbl">Driver cost</span><b>₹40,000</b><span>a month · two salaries</span></div>
+      <div class="stat"><span class="lbl">CNG and toll</span><b>₹4,000</b><span>a day · ₹2,000 one way</span></div>
+    </div>
+  </main>
+  <footer class="foot"><span>ROVEYA · Phase 2 handover</span><span>09</span></footer>
+</section>
+
+<!-- 10 PHASE 2 MATH -->
+<section class="page" id="p2m">
+  <header class="top">
+    <div><p class="kicker">Phase 2 · Unit economics</p><h2>Vijayawada profit build</h2></div>
+    <div class="badge">10</div>
+  </header>
+  <main>
+    <p class="say">Four passengers pay ₹900, and the day has two trips: <b>4 × ₹900 × 2 = ₹7,200</b>. Fuel and toll take <b>₹4,000</b>. What remains across 30 days is ₹96,000, then two drivers take <b>₹40,000</b>. The month keeps <b>₹56,000</b>. Six months: revenue <b>₹12.96 lakh</b>, CNG and toll <b>₹7.20 lakh</b>, salaries <b>₹2.40 lakh</b>, profit <b>₹3.36 lakh</b>.</p>
+    <div class="steps">
+      <div class="step"><i>1</i><b>4 × ₹900 × 2 trips</b><em>₹7,200 a day</em></div>
+      <div class="step"><i>2</i><b>CNG and toll, ₹2,000 each way</b><em>₹4,000 a day</em></div>
+      <div class="step"><i>3</i><b>(₹7,200 − ₹4,000) × 30 − ₹40,000</b><em>₹56,000 a month</em></div>
+      <div class="step"><i>4</i><b>₹7,200 × 30 × 6</b><em>Revenue ₹12.96 lakh</em></div>
+      <div class="step"><i>5</i><b>₹4,000 × 30 × 6, and ₹40,000 × 6</b><em>Cost ₹9.60 lakh</em></div>
+      <div class="step"><i>6</i><b>₹12.96 − ₹7.20 − ₹2.40</b><em>Profit ₹3.36 lakh</em></div>
+    </div>
+    <div class="grid3 grow">
+      <div class="card"><span class="lbl">Daily distance</span><strong>560 km</strong><p>280 km each way.</p></div>
+      <div class="card"><span class="lbl">Monthly distance</span><strong>16,800 km</strong><p>560 × 30.</p></div>
+      <div class="card"><span class="lbl">CNG a month</span><strong>509–560 kg</strong><p>At 30–33 km a kg.</p></div>
+    </div>
+  </main>
+  <footer class="foot"><span>ROVEYA · Phase 2 count</span><span>10</span></footer>
+</section>
+
+<!-- 11 YEAR 2 -->
+<section class="page" id="y2">
+  <header class="top">
+    <div><p class="kicker">Phase 3 · Year 2</p><h2>Third car and the operating base</h2></div>
+    <div class="badge">11</div>
+  </header>
+  <main>
+    <div class="grid3">
+      <div class="card"><span class="lbl">Car 1</span><strong>Hyderabad ↔ Khammam</strong><p>Existing base.</p></div>
+      <div class="card"><span class="lbl">Car 2</span><strong>Hyderabad ↔ Vijayawada</strong><p>Growth corridor.</p></div>
+      <div class="card"><span class="lbl">Car 3</span><strong>Hyderabad ↔ Khammam</strong><p>New capacity on the proved route.</p></div>
+    </div>
+    <p class="kicker">Car 3 economics · one hired driver</p>
+    <div class="flow">
+      <div class="node"><span class="n">Revenue</span><b>₹1.44L</b><p>₹4,800 a day</p></div>
+      <div class="chev">−</div>
+      <div class="node"><span class="n">CNG + toll</span><b>₹84,000</b><p>₹2,800 a day</p></div>
+      <div class="chev">−</div>
+      <div class="node"><span class="n">Salary</span><b>₹20,000</b><p>1 driver</p></div>
+      <div class="chev">=</div>
+      <div class="node on"><span class="n">Profit</span><b>₹40,000</b><p>each month</p></div>
+    </div>
+    <p class="say">Same Khammam day as Car 1: ₹4,800 in, ₹2,800 of fuel and toll out. Car 3 then pays one driver, so the month is ₹40,000. ₹1,44,000 − ₹84,000 − ₹20,000 = ₹40,000.</p>
+    <div class="grid3 grow">
+      <div class="stat"><span class="lbl">Year 2 fleet revenue</span><b>₹60.48L</b><span>Three cars, full year</span></div>
+      <div class="stat"><span class="lbl">Year 2 fleet cost</span><b>₹44.16L</b><span>CNG, toll, salaries</span></div>
+      <div class="stat"><span class="lbl">Year 2 operating profit</span><b>₹16.32L</b><span>₹60.48L − ₹44.16L</span></div>
+    </div>
+  </main>
+  <footer class="foot"><span>ROVEYA · Year 2</span><span>11</span></footer>
+</section>
+
+<!-- 12 PROVE -->
+<section class="page" id="prove">
+  <header class="top">
+    <div><p class="kicker">Phase review</p><h2>What each stage must prove</h2></div>
+    <div class="badge">12</div>
+  </header>
+  <main>
+    <table class="matrix">
+      <tr><th></th><th>Phase 1</th><th>Phase 2</th><th>Phase 3</th></tr>
+      <tr><td>Primary goal</td><td>Prove the route</td><td>Add a corridor</td><td>Build density</td></tr>
+      <tr><td>Fleet</td><td>1 car</td><td>2 cars</td><td>3 cars</td></tr>
+      <tr><td>Founder role</td><td>Driver</td><td>Owner / operator</td><td>Network builder</td></tr>
+      <tr><td>Key test</td><td>Return occupancy</td><td>Safe handover</td><td>Repeatable expansion</td></tr>
+      <tr><td>Monthly profit</td><td>₹60,000</td><td>₹56,000</td><td>₹1.36 lakh fleet</td></tr>
+  </table>
+  <div class="flow">
+      <div class="node on"><span class="n">Phase 1</span><b>Driver</b><p>He is in the car. The test is a full return.</p></div>
+      <div class="chev">→</div>
+      <div class="node"><span class="n">Phase 2</span><b>Owner</b><p>Two drivers hand the Vijayawada car over safely.</p></div>
+      <div class="chev">→</div>
+      <div class="node on"><span class="n">Phase 3</span><b>Builder</b><p>A third car repeats Khammam without reinventing it.</p></div>
+  </div>
+    <p class="say">₹16.32 lakh of year-2 profit, divided by 12, is the <b>₹1.36 lakh</b> fleet figure in this table. The role changes with the proof: driver, then owner, then the person who adds the next route.</p>
+  </main>
+  <footer class="foot"><span>ROVEYA · Phase review</span><span>12</span></footer>
+</section>
+
+<!-- 13 REVENUE -->
+<section class="page" id="rev">
+  <header class="top">
+    <div><p class="kicker">04 · Revenue model</p><h2>How a month of fares is built</h2></div>
+    <div class="badge">13</div>
+  </header>
+  <main>
+    <p class="say"><b>Core formula.</b> 4 paying passengers × the route fare × completed trips. Occupancy of four is the demand assumption of the base model.</p>
+  <div class="flow">
+      <div class="node"><span class="n">Seats</span><b>4</b></div>
+      <div class="chev">×</div>
+      <div class="node"><span class="n">Fare</span><b>Route fare</b></div>
+      <div class="chev">×</div>
+      <div class="node"><span class="n">Trips</span><b>Completed</b></div>
+      <div class="chev">×</div>
+      <div class="node on"><span class="n">Days</span><b>30</b></div>
+      <div class="chev">=</div>
+      <div class="node on"><span class="n">Month</span><b>Route revenue</b></div>
+    </div>
+    <table>
+      <tr><th>Route</th><th>What the slide prints</th><th>Monthly revenue</th></tr>
+      <tr><td>Khammam</td><td>₹600 · 2 trips · ₹4,800 a day</td><td>₹1.44 lakh</td></tr>
+      <tr><td>Vijayawada</td><td>₹900 · 2 trips · ₹7,200 a day</td><td>₹2.16 lakh</td></tr>
+      <tr><td>Kottagudem</td><td>₹250 a seat · 3 trips a day</td><td>₹0.90 lakh</td></tr>
+      <tr><td>Karimnagar</td><td>Monthly revenue only</td><td>₹1.68 lakh</td></tr>
+      <tr><td>Year 5 city pair</td><td>Monthly revenue only</td><td>₹1.44 lakh</td></tr>
+    </table>
+    <div class="grid3 grow">
+      <div class="card"><span class="lbl">Year 1</span><strong>₹21.60L</strong><p>Khammam six months plus Vijayawada six months.</p></div>
+      <div class="card"><span class="lbl">Year 2 · Year 3</span><strong>₹60.48L · ₹71.28L</strong><p>Three cars, then four.</p></div>
+      <div class="card"><span class="lbl">Year 4 · Year 5</span><strong>₹91.44L · ₹108.72L</strong><p>Five cars, then the six-car network.</p></div>
+  </div>
+  </main>
+  <footer class="foot"><span>ROVEYA · Revenue · no extra city price list</span><span>13</span></footer>
+</section>
+
+<!-- 14 COST -->
+<section class="page" id="cost">
+  <header class="top">
+    <div><p class="kicker">05 · Operating costs</p><h2>What the five-year cost is</h2></div>
+    <div class="badge">14</div>
+  </header>
+  <main>
+    <div class="grid2">
+      <div class="stat"><span class="lbl">CNG and toll · 77.8%</span><b>₹193.68L</b><span>Five-year operating fuel and toll</span></div>
+      <div class="stat"><span class="lbl">Driver salaries · 22.2%</span><b>₹55.20L</b><span>Five-year driver pay in the model</span></div>
+    </div>
+  <div class="flow">
+      <div class="node on" style="flex:3.5"><span class="n">77.8%</span><b>CNG + toll</b><p>₹193.68 lakh</p></div>
+      <div class="node" style="flex:1"><span class="n">22.2%</span><b>Salaries</b><p>₹55.20 lakh</p></div>
+    </div>
+    <p class="kicker">Left outside these profit figures</p>
+    <div class="grid3 grow">
+      <div class="card"><span class="lbl">Vehicle</span><strong>EMI or purchase</strong><p>The car itself is not in the operating profit.</p></div>
+      <div class="card"><span class="lbl">Cover</span><strong>Insurance</strong><p>Not in the route cost.</p></div>
+      <div class="card"><span class="lbl">Upkeep</span><strong>Maintenance and repairs</strong><p>Not in the route cost.</p></div>
+      <div class="card"><span class="lbl">Papers</span><strong>Permits and taxes</strong><p>Not in the route cost.</p></div>
+      <div class="card"><span class="lbl">Desk</span><strong>Marketing</strong><p>Not in the route cost.</p></div>
+      <div class="card"><span class="lbl">Office</span><strong>Administration</strong><p>Not in the route cost.</p></div>
+    </div>
+    <p class="say">These items should be added to the investment case once vehicle financing and operating policy are final. Every profit number in this book is operating profit after CNG, toll, and driver salary.</p>
+  </main>
+  <footer class="foot"><span>ROVEYA · Costs · ₹193.68L + ₹55.20L = ₹248.88L</span><span>14</span></footer>
+</section>
+
+<!-- 15 PROFIT -->
+<section class="page" id="profit">
+  <header class="top">
+    <div><p class="kicker">06 · Profitability</p><h2>Operating profit by phase</h2></div>
+    <div class="badge">15</div>
+  </header>
+  <main>
+    <div class="bars grow">
+      <div class="bar"><b>Phase 1<br />6 months</b><i style="width:22%"></i><span>₹3.60 lakh</span></div>
+      <div class="bar"><b>Phase 2<br />6 months</b><i style="width:20%"></i><span>₹3.36 lakh</span></div>
+      <div class="bar"><b>Year 2<br />full year</b><i style="width:50%"></i><span>₹16.32 lakh</span></div>
+      <div class="bar"><b>Year 3</b><i style="width:62%"></i><span>₹20.40 lakh</span></div>
+      <div class="bar"><b>Year 4</b><i style="width:85%"></i><span>₹28.08 lakh</span></div>
+      <div class="bar"><b>Year 5</b><i style="width:100%"></i><span>₹32.88 lakh</span></div>
+  </div>
+    <div class="grid3">
+      <div class="stat"><span class="lbl">Phase 1</span><b>₹3.60L</b><span>Six months · founder in the car</span></div>
+      <div class="stat"><span class="lbl">Phase 2</span><b>₹3.36L</b><span>Six months · two drivers</span></div>
+      <div class="stat"><span class="lbl">Year 2</span><b>₹16.32L</b><span>Full year · three-car base</span></div>
+  </div>
+    <p class="say">Profit expands as the fleet moves from founder-led validation to a multi-car operating base. The bars use year 5 as the full width, so the earlier years sit in proportion to ₹32.88 lakh.</p>
+  </main>
+  <footer class="foot"><span>ROVEYA · Profit by phase</span><span>15</span></footer>
+</section>
+
+<!-- 16 YEARS 3-5 -->
+<section class="page" id="y35">
+  <header class="top">
+    <div><p class="kicker">07 · Growth</p><h2>Years 3 to 5, the six-car network</h2></div>
+    <div class="badge">16</div>
+  </header>
+  <main>
+    <div class="grid3 grow">
+      <div class="card">
+        <span class="lbl">Year 3</span>
+        <strong>4 cars</strong>
+        <p>+ Kottagudem<br />3 trips · ₹250 a seat · ₹1,200 CNG a day</p>
+        <p style="margin-top:3mm">Revenue <b style="color:var(--gold2)">₹71.28L</b><br />Cost ₹50.88L<br />Profit <b style="color:var(--gold2)">₹20.40L</b></p>
+      </div>
+      <div class="card">
+        <span class="lbl">Year 4</span>
+        <strong>5 cars</strong>
+        <p>+ Karimnagar<br />Monthly revenue ₹1.68 lakh. A separate seat fare is not printed.</p>
+        <p style="margin-top:3mm">Revenue <b style="color:var(--gold2)">₹91.44L</b><br />Cost ₹63.36L<br />Profit <b style="color:var(--gold2)">₹28.08L</b></p>
+      </div>
+      <div class="card">
+        <span class="lbl">Year 5</span>
+        <strong>6 cars</strong>
+        <p>+ one more city pair<br />Monthly revenue ₹1.44 lakh. A separate seat fare is not printed.</p>
+        <p style="margin-top:3mm">Revenue <b style="color:var(--gold2)">₹108.72L</b><br />Cost ₹75.84L<br />Profit <b style="color:var(--gold2)">₹32.88L</b></p>
+      </div>
+    </div>
+  <div class="flow">
+      <div class="node"><span class="n">Check</span><b>71.28 − 50.88</b><p>= 20.40</p></div>
+      <div class="chev">→</div>
+      <div class="node"><span class="n">Check</span><b>91.44 − 63.36</b><p>= 28.08</p></div>
+      <div class="chev">→</div>
+      <div class="node on"><span class="n">Check</span><b>108.72 − 75.84</b><p>= 32.88</p></div>
+    </div>
+    <p class="say">ROVEYA does not stop at year 5. Proved economics and route density are the base for the next cycle of the network.</p>
+  </main>
+  <footer class="foot"><span>ROVEYA · Years 3–5</span><span>16</span></footer>
+</section>
+
+<!-- 17 FIVE YEAR -->
+<section class="page" id="five">
+  <header class="top">
+    <div><p class="kicker">08 · Five-year view</p><h2>Consolidated result</h2></div>
+    <div class="badge">17</div>
+  </header>
+  <main>
+    <div class="trio">
+      <div>
+        <p class="kicker">Five-year revenue</p>
+        <b>₹3.5352 crore</b>
+        <p>₹353.52 lakh · years 1 to 5 added: 21.60 + 60.48 + 71.28 + 91.44 + 108.72</p>
+      </div>
+      <div>
+        <p class="kicker">Five-year operating cost</p>
+        <b>₹2.4888 crore</b>
+        <p>₹248.88 lakh · CNG and toll ₹193.68 lakh plus salaries ₹55.20 lakh</p>
+      </div>
+      <div>
+        <p class="kicker">Cumulative operating profit</p>
+        <b>₹1.0464 crore</b>
+        <p>₹104.64 lakh · 3.60 + 3.36 + 16.32 + 20.40 + 28.08 + 32.88. This is the sum of five years, not one year’s earning.</p>
+  </div>
+  </div>
+    <div class="grid2">
+      <div class="stat"><span class="lbl">Year 5 profit</span><b>₹32.88L</b><span>about ₹2.74 lakh a month</span></div>
+      <div class="stat"><span class="lbl">What ₹1.05 crore means</span><b>Five years added</b><span>Operating profit after fuel, toll, and driver pay.</span></div>
+  </div>
+  </main>
+  <footer class="foot"><span>ROVEYA · ₹353.52L − ₹248.88L = ₹104.64L</span><span>17</span></footer>
+</section>
+
+<!-- 18 PARTNERSHIP DIALOGUE -->
+<section class="page" id="ask">
+  <header class="top">
+    <div><p class="kicker">09 · Partnership</p><h2>Build the business, not only the cars</h2></div>
+    <div class="badge">18</div>
+  </header>
+  <main>
+    <p class="say" style="font-size:12.5pt;line-height:1.45">I am not asking partners to buy all the cars or invest everything from day one.</p>
+    <p class="say" style="font-size:12.5pt;line-height:1.45">I will take responsibility for the first car and prove the first stage. When that stage works, we move together into the second car, then the third, using real demand, cost, and profit data.</p>
+    <p class="say" style="font-size:12.5pt;line-height:1.45">Let us take the risk together today, build the foundation together, and enjoy the results together in the future.</p>
+    <div class="cover-side" style="flex:1">
+      <div class="card"><span class="lbl">01 · Prove</span><strong>Support the Car 1 launch</strong><p>The founder takes the first car and the first six months.</p></div>
+      <div class="card"><span class="lbl">02 · Learn</span><strong>Help fill the seats</strong><p>Passenger acquisition and repeat travel on the live route.</p></div>
+      <div class="card"><span class="lbl">03 · Grow</span><strong>Car 2 after the proof</strong><p>Vijayawada opens only when Khammam’s numbers are real.</p></div>
+      <div class="card"><span class="lbl">04 · Reinvest</span><strong>Car 3 on Khammam</strong><p>Density on the route that has already been proved.</p></div>
+      <div class="card"><span class="lbl">05 · Expand</span><strong>Build for the long term</strong><p>Shared ownership of the network, car by car.</p></div>
+    </div>
+  </main>
+  <footer class="foot"><span>ROVEYA · Founder’s ask</span><span>18</span></footer>
+</section>
+
+<!-- 19 PARTNER MODEL -->
+<section class="page" id="help">
+  <header class="top">
+    <div><p class="kicker">Partnership model</p><h2>What the partner helps build</h2></div>
+    <div class="badge">19</div>
+  </header>
+  <main>
+    <div class="pillars">
+      <div class="pillar"><span class="n">CAPITAL TIMING</span><b>After the proof</b><p>Vehicle additions come once the operating numbers are real.</p></div>
+      <div class="pillar"><span class="n">DEMAND</span><b>Repeat travel</b><p>Help build passenger acquisition on the city pairs that are running.</p></div>
+      <div class="pillar"><span class="n">OPERATIONS</span><b>Decisions from data</b><p>Route choices use the cost, fill, and profit already recorded.</p></div>
+      <div class="pillar"><span class="n">SCALE</span><b>From routes to a network</b><p>Support the move from one corridor to the connected fleet.</p></div>
+    </div>
+    <div class="flow">
+      <div class="node"><span class="n">01</span><b>Support Car 1</b></div>
+      <div class="chev">→</div>
+      <div class="node"><span class="n">02</span><b>Fill the seats</b></div>
+      <div class="chev">→</div>
+      <div class="node"><span class="n">03</span><b>Car 2 after proof</b></div>
+      <div class="chev">→</div>
+      <div class="node"><span class="n">04</span><b>Car 3</b></div>
+      <div class="chev">→</div>
+      <div class="node on"><span class="n">05</span><b>Long term</b></div>
+    </div>
+    <p class="say">The objective is shared ownership of the system, rather than ownership of individual vehicles only.</p>
+  </main>
+  <footer class="foot"><span>ROVEYA · Partnership model</span><span>19</span></footer>
+</section>
+
+<!-- 20 VISION -->
+<section class="page" id="vision">
+  <header class="top">
+    <div><p class="kicker">The bigger vision</p><h2>Owners of a network</h2></div>
+    <div class="badge">20</div>
+  </header>
+  <main>
+    <div class="say bigq">We are not trying to become six drivers with six cars.</div>
+    <p class="say" style="font-size:14pt">We are trying to become the owners of a transportation network.</p>
+    <div class="grid2 grow">
+      <div class="card"><span class="lbl">Brand</span><strong>Recognizable</strong><p>People know the name on the city pair.</p></div>
+      <div class="card"><span class="lbl">Map</span><strong>More city pairs</strong><p>Each new pair uses the same proof rule.</p></div>
+      <div class="card"><span class="lbl">Method</span><strong>Standard route operations</strong><p>Demand, dispatch, travel, return, review.</p></div>
+      <div class="card"><span class="lbl">Capital</span><strong>Reinvest into the fleet</strong><p>Operating profit is the fuel for the next car.</p></div>
+  </div>
+  </main>
+  <footer class="foot"><span>ROVEYA · Vision</span><span>20</span></footer>
+</section>
+
+<!-- 21 ASSUMPTIONS -->
+<section class="page" id="notes">
+  <header class="top">
+    <div><p class="kicker">10 · Assumptions</p><h2>What the model holds still</h2></div>
+    <div class="badge">21</div>
+  </header>
+  <main>
+  <table>
+      <tr><th>Item</th><th>As printed</th></tr>
+      <tr><td>Occupancy</td><td>4 paying passengers a trip</td></tr>
+      <tr><td>Operating days</td><td>30 days a month</td></tr>
+      <tr><td>Driver salary</td><td>₹20,000 a month for each driver</td></tr>
+      <tr><td>Vijayawada staffing</td><td>2 drivers</td></tr>
+      <tr><td>Khammam, Karimnagar, and the year 5 pair</td><td>1 driver a vehicle</td></tr>
+      <tr><td>Kottagudem</td><td>3 trips a day · ₹250 a seat · ₹1,200 CNG a day</td></tr>
+      <tr><td>Route operating cost</td><td>CNG and toll, plus driver salary where a driver is employed</td></tr>
+      <tr><td>Phase 1 pay</td><td>No CEO salary</td></tr>
+  </table>
+    <div class="grid2 grow">
+      <div class="card"><span class="lbl">Inside the profit</span><strong>Fuel, toll, driver</strong><p>That is the whole operating cost in this book.</p></div>
+      <div class="card"><span class="lbl">Outside the profit</span><strong>Ownership and office</strong><p>EMI, purchase, insurance, maintenance, permits, taxes, marketing, administration.</p></div>
+    </div>
+    <p class="say">All profit figures are operating-model figures, before financing, ownership, and corporate overhead.</p>
+  </main>
+  <footer class="foot"><span>ROVEYA · Model notes</span><span>21</span></footer>
+</section>
+
+<!-- 22 ABOUT ROVEYA -->
+<section class="page" id="founder">
+  <header class="top">
+    <div><p class="kicker">About ROVEYA</p><h2>Comfort has a seat of its own.</h2></div>
+    <div class="badge">22</div>
+  </header>
+  <main>
+    <div class="ceo">
+      <div class="shot"><img src="founder.jpg" alt="Shaik Asif Nawaz, Founder and CEO of ROVEYA" /></div>
+      <div class="id">
+    <div>
+          <p class="kicker">Founder and Chief Executive</p>
+          <h2>Shaik Asif Nawaz</h2>
+          <p class="role">ROVEYA · Hyderabad</p>
+        </div>
+        <p class="note">ROVEYA is built for passengers who want a calm journey. You get a comfortable seat that belongs to you, in a clean cabin, with room left on purpose.</p>
+        <p class="say">Care that travels with you. A comfortable seat of your own, mineral water, a planned break, and luggage attended to before you sit.</p>
+      </div>
+    </div>
+    <div class="about-cards">
+      <div class="card"><span class="lbl">Your own seat</span><strong>One passenger</strong><p>Every seat is given to one passenger. Two people are never asked to share one place.</p></div>
+      <div class="card"><span class="lbl">A clean seat</span><strong>Prepared before you sit</strong><p>Seats are cleaned and prepared before you sit. Hygiene is part of the ride, not an extra.</p></div>
+      <div class="card"><span class="lbl">Room we keep open</span><strong>7 seats, 4 or 5 passengers</strong><p>The car can hold seven. We stop at four or five so the cabin never feels packed.</p></div>
+      <div class="card"><span class="lbl">Mineral water</span><strong>Kept ready</strong><p>A sealed mineral water bottle is kept for you, ready when you want it.</p></div>
+      <div class="card"><span class="lbl">A planned break</span><strong>One stop, same seat</strong><p>On a longer journey we make one planned stop. You return to the same seat.</p></div>
+      <div class="card"><span class="lbl">Luggage</span><strong>Placed before you board</strong><p>Luggage is collected and placed before you board, clear of the next passenger.</p></div>
+    </div>
+    <div class="signoff">
+      <div class="pad">
+        <div class="line"></div>
+        <b>Shaik Asif Nawaz</b>
+        <span>Founder and Chief Executive</span>
+    </div>
+  </div>
+  </main>
+  <footer class="foot"><span>ROVEYA · About the journey</span><span>22</span></footer>
+</section>
+
+</body>
+</html>

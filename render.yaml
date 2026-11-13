@@ -1,0 +1,42 @@
+# Render blueprint for the current ROVEYA sites and the two phone apps as websites.
+# Admin secrets are entered in the Render dashboard. They are not stored here.
+services:
+  - type: web
+    name: roveya-website
+    runtime: node
+    plan: free
+    rootDir: Phase-1 code base/RoveyaOfficialWebsite
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+
+  - type: web
+    name: roveya-admin
+    runtime: node
+    plan: free
+    rootDir: Phase-1 code base/ADMIN_NETWORK
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+
+  - type: web
+    name: roveya-riders
+    runtime: static
+    rootDir: Phase-1 code base/Phase-2 implementation
+    buildCommand: cd "Roveya-Bike,Auto/customer" && npm install && npx expo export --platform web && rm -rf ../../riders-web && mkdir -p ../../riders-web && cp -r dist/. ../../riders-web/
+    staticPublishPath: riders-web
+
+  - type: web
+    name: roveya-captains
+    runtime: static
+    rootDir: Phase-1 code base/Phase-2 implementation
+    buildCommand: cd "Roveya-Bike,Auto/rider" && npm install && npx expo export --platform web && rm -rf ../../captains-web && mkdir -p ../../captains-web && cp -r dist/. ../../captains-web/
+    staticPublishPath: captains-web

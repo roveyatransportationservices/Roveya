@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>ROVEYA — Phase 1 codebase</title>
+<style>
+  :root {
+    --night: #12060D;
+    --cherry: #4C102C;
+    --burgundy: #6B1838;
+    --cream: #F6F1DC;
+    --gold: #D6A000;
+    --gold-bright: #E0B23A;
+    --ink: #1C0A14;
+    --paper: #fffdf6;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    background: var(--cream);
+    color: var(--night);
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.42;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  @media screen {
+    body { max-width: 210mm; margin: 0 auto; background: #e7e0cc; }
+    article, section { background: var(--cream); }
+  }
+  @page { size: A4; margin: 14mm 14mm 16mm; }
+  h2 { font-size: 20pt; line-height: 1.12; margin: 0 0 2mm; color: var(--night); }
+  h3 { font-size: 12pt; margin: 4mm 0 1.5mm; color: var(--burgundy); }
+  p { margin: 0 0 2.5mm; }
+  .num { display: block; color: var(--burgundy); letter-spacing: 0.16em; font-size: 8.5pt; font-weight: 700; margin-bottom: 1mm; }
+  .kicker { letter-spacing: 0.16em; text-transform: uppercase; font-size: 8.5pt; color: var(--burgundy); font-weight: 700; margin: 0; }
+  section { break-before: page; padding-top: 1mm; }
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 3mm; font-size: 10pt; break-inside: avoid; }
+  th { text-align: left; color: var(--burgundy); font-weight: 700; padding: 1.8mm 2.5mm; border-bottom: 2px solid var(--burgundy); }
+  td { padding: 1.6mm 2.5mm; border-bottom: 1px solid rgba(76, 16, 44, 0.22); vertical-align: top; }
+  tr:nth-child(even) td { background: rgba(214, 160, 0, 0.14); }
+  .goldline { height: 3px; width: 28mm; background: var(--gold); border: 0; margin: 3mm 0; }
+  .band {
+    background: var(--night); color: var(--cream);
+    margin: -14mm -14mm 8mm; padding: 16mm 14mm 12mm;
+    print-color-adjust: exact; -webkit-print-color-adjust: exact;
+  }
+  .band .kicker { color: var(--gold-bright); }
+  .mark {
+    width: 16mm; height: 16mm; border: 1.5px solid var(--gold); border-radius: 3.5mm;
+    display: flex; align-items: flex-end; justify-content: center; position: relative; background: var(--ink);
+  }
+  .mark span { font-size: 15pt; font-weight: 700; color: var(--cream); line-height: 1; margin-bottom: 3mm; }
+  .mark i { position: absolute; left: 3mm; right: 3mm; bottom: 2.6mm; height: 1.5px; background: var(--gold); }
+  .cover { min-height: 250mm; }
+  .cover h1 { font-size: 36pt; letter-spacing: 0.08em; margin: 6mm 0 1mm; }
+  .lead { font-size: 13pt; max-width: 160mm; }
+  .index a {
+    display: flex; gap: 4mm; color: var(--night); text-decoration: none;
+    padding: 1.8mm 0; border-bottom: 1px solid rgba(76, 16, 44, 0.2); font-size: 11.5pt;
+  }
+  .index a span { color: var(--burgundy); width: 12mm; font-weight: 700; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5mm; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2.5mm; }
+  .card {
+    border: 1.5px solid var(--burgundy); border-top: 4px solid var(--gold);
+    border-radius: 2mm; padding: 3mm 3.5mm; background: var(--paper); break-inside: avoid;
+  }
+  .card strong { display: block; color: var(--burgundy); margin-bottom: 1mm; }
+  .note { border-left: 4px solid var(--gold); padding: 2mm 3.5mm; background: rgba(214, 160, 0, 0.16); margin: 2.5mm 0 3mm; }
+  .flow { display: flex; flex-wrap: wrap; gap: 1.6mm; align-items: center; margin: 2mm 0 3mm; }
+  .box {
+    border: 1.5px solid var(--night); background: var(--paper); border-radius: 2mm;
+    padding: 1.8mm 2.6mm; font-size: 9.5pt; font-weight: 650; font-weight: 600;
+  }
+  .box.gold { border-color: var(--gold); background: var(--gold-bright); }
+  .box.wine { border-color: var(--burgundy); background: #f3e4ea; color: var(--burgundy); }
+  .box.night { background: var(--night); color: var(--cream); border-color: var(--gold); }
+  .arrow { color: var(--burgundy); font-weight: 700; }
+  .stack { display: grid; gap: 1.5mm; }
+  .layer {
+    border: 1.5px solid var(--burgundy); border-radius: 2mm; padding: 2.5mm 3.5mm; background: var(--paper);
+  }
+  .layer b { color: var(--burgundy); }
+  .foot { margin-top: 6mm; border-top: 2px solid var(--gold); padding-top: 2mm; font-size: 8.5pt; color: var(--burgundy); }
+  ol, ul { margin: 0 0 2.5mm; padding-left: 5mm; }
+  li { margin: 0.8mm 0; }
+</style>
+</head>
+<body>
+
+<article class="cover">
+  <div class="band">
+    <div class="mark"><span>R</span><i></i></div>
+    <p class="kicker" style="margin-top:8mm">Phase 1 codebase · Public site, seat payment, operations desk</p>
+    <h1>ROVEYA</h1>
+    <p style="font-size:14pt;margin:0">Connecting cities. Moving people.</p>
+  </div>
+  <p class="lead">A page-by-page account of the Phase 1 codebase: what the website says, how a visit moves, how a seat is paid, and where each record is kept.</p>
+  <hr class="goldline" />
+  <p class="kicker">Prepared for print</p>
+  <p><strong>Shaik Asif Nawaz</strong><br />Founder and CEO</p>
+  <p>Live site: roveya.onrender.com<br />ROVEYA Travel Desk, Khammam, Telangana<br />+91 90000 00001 · hello@roveya.com<br />Daily, 5:00 AM – 11:00 PM</p>
+  <p class="note">Print on A4, one section to a page. Turn on background graphics so the night band, burgundy, and gold appear. The words are dark on cream, so a black-and-white xerox still reads.</p>
+</article>
+
+<section id="index">
+  <span class="num">00</span>
+  <h2>Contents</h2>
+  <hr class="goldline" />
+  <nav class="index">
+    <a href="#phase"><span>01</span>What Phase 1 is</a>
+    <a href="#arch"><span>02</span>Architecture</a>
+    <a href="#content"><span>03</span>Content of the public site</a>
+    <a href="#visit"><span>04</span>How a visit moves</a>
+    <a href="#pay"><span>05</span>How a seat is paid</a>
+    <a href="#money"><span>06</span>Cash and online payment</a>
+    <a href="#records"><span>07</span>What is stored</a>
+    <a href="#desk"><span>08</span>The operations desk</a>
+    <a href="#brand"><span>09</span>Colour and type</a>
+    <a href="#boundary"><span>10</span>The edge of this phase</a>
+  </nav>
+  <p>Each numbered part is one page. Read them in order, or open the page that answers the question in front of you.</p>
+  <p class="foot">ROVEYA · Phase 1 codebase · Shaik Asif Nawaz</p>
+</section>
+
+<section id="phase">
+  <span class="num">01</span>
+  <h2>What Phase 1 is</h2>
+  <hr class="goldline" />
+  <p>Phase 1 is the working public company. A person can read ROVEYA, write to the desk, and a passenger already in the vehicle can pay for the seat. Staff can see that work from the operations desk.</p>
+  <div class="grid">
+    <div class="card"><strong>Public website</strong>Home, About, Services, Pool a Ride, and Contact. The story is one seat, a clean cabin, and four or five passengers in a 7-seater.</div>
+    <div class="card"><strong>Seat payment</strong>The mark in the vehicle opens the pay screen. The passenger pays cash or online. The fare is seats times the fare of that destination.</div>
+    <div class="card"><strong>Desk</strong>Rides, destinations, customers, messages, testimonials, the vehicle mark, and the desk settings live in one staff screen.</div>
+    <div class="card"><strong>Record</strong>Names, rides, payments, contact notes, and published comments are stored. A visit is written into the activity log.</div>
+  </div>
+  <h3>The three doors</h3>
+  <div class="flow">
+    <div class="box night">Visitor</div><span class="arrow">→</span>
+    <div class="box">Reads the site</div><span class="arrow">→</span>
+    <div class="box gold">Writes to the desk</div>
+  </div>
+  <div class="flow">
+    <div class="box night">Passenger</div><span class="arrow">→</span>
+    <div class="box">Opens the mark in the car</div><span class="arrow">→</span>
+    <div class="box gold">Pays the seat</div>
+  </div>
+  <div class="flow">
+    <div class="box night">Staff</div><span class="arrow">→</span>
+    <div class="box">Signs in</div><span class="arrow">→</span>
+    <div class="box gold">Confirms and keeps the day</div>
+  </div>
+  <p class="note">A passenger does not create an account to pay. Only the founder and admin sign in.</p>
+</section>
+
+<section id="arch">
+  <span class="num">02</span>
+  <h2>Architecture</h2>
+  <hr class="goldline" />
+  <p>The codebase is one application. The page the person sees, the check behind it, and the store sit in layers. A layer speaks only to the one beneath it.</p>
+  <div class="stack">
+    <div class="layer"><b>1. Pages.</b> Home, About, Services, Pool a Ride, Contact, Pay, and the desk. These draw the screen. They do not calculate a fare or talk to the bank.</div>
+    <div class="layer"><b>2. Routes.</b> Each action has an address: create a ride, send a message, open an online order, confirm cash, publish a comment. The page calls the address. The address checks the request.</div>
+    <div class="layer"><b>3. Rules.</b> Seat fare is fare per seat times the number of seats, from 1 to 8. A ride moves through created, payment waiting, cash waiting, paid, failed, or cancelled. Staff are CEO or Admin.</div>
+    <div class="layer"><b>4. Store.</b> Supabase holds customers, destinations, rides, payments, messages, comments, and staff. Razorpay takes the online payment. The activity log records a visit.</div>
+  </div>
+  <h3>One action, top to bottom</h3>
+  <div class="flow">
+    <div class="box">Screen</div><span class="arrow">→</span>
+    <div class="box">Address</div><span class="arrow">→</span>
+    <div class="box wine">Rule</div><span class="arrow">→</span>
+    <div class="box gold">Store</div>
+  </div>
+  <p>The live copy of this codebase is served from Render at roveya.onrender.com. The same pages run on a local machine while work is in progress.</p>
+</section>
+
+<section id="content">
+  <span class="num">03</span>
+  <h2>Content of the public site</h2>
+  <hr class="goldline" />
+  <p>Every public page says the same thing in a different room. The seat is allocated to one passenger. The cabin is cleaned. A 7-seater carries four or five. Water, one planned break, and luggage are part of the ride.</p>
+  <table>
+    <tr><th>Page</th><th>What the reader leaves with</th></tr>
+    <tr><td>Home</td><td>The promise, six services, six reasons, a moving row of comments, and the desk form.</td></tr>
+    <tr><td>About</td><td>One seat, a clean seat, room left open, and a plan of the 7-seater.</td></tr>
+    <tr><td>Services</td><td>Mineral water, one planned break that is not skipped, luggage attended to, and the fare for that seat.</td></tr>
+    <tr><td>Pool a Ride</td><td>A road has a start, a destination, and a time. Each passenger has their own seat.</td></tr>
+    <tr><td>Contact</td><td>Phone, WhatsApp, email, and a form. After it is saved, the page confirms that the desk will call.</td></tr>
+    <tr><td>Pay</td><td>Name, optional mobile, seats, destination, then cash or pay online.</td></tr>
+  </table>
+  <h3>Comments</h3>
+  <p>Published comments move in a row, three across on a wide screen. The row pauses when the pointer rests on it. The three comments already stored stay. Further comments were added so the row has enough to move.</p>
+  <p class="note">WhatsApp on the home page, the contact page, and the footer opens with a ready note about a seat, a route, or a ride already moving.</p>
+</section>
+
+<section id="visit">
+  <span class="num">04</span>
+  <h2>How a visit moves</h2>
+  <hr class="goldline" />
+  <p>A visitor does not book a future seat on the website. They learn the service, then either write to the desk or, if they are already travelling, pay from the car.</p>
+  <h3>Reading</h3>
+  <div class="flow">
+    <div class="box gold">Home</div><span class="arrow">→</span>
+    <div class="box">About</div><span class="arrow">→</span>
+    <div class="box">Services</div><span class="arrow">→</span>
+    <div class="box">Pool a Ride</div>
+  </div>
+  <h3>Writing</h3>
+  <div class="flow">
+    <div class="box">Name</div><span class="arrow">→</span>
+    <div class="box">Mobile</div><span class="arrow">→</span>
+    <div class="box">Note</div><span class="arrow">→</span>
+    <div class="box wine">Saved</div><span class="arrow">→</span>
+    <div class="box gold">Confirmation</div>
+  </div>
+  <p>The confirmation sits in the centre of the card. It says the message has been sent, and that a representative of the desk will contact the sender on the mobile number given, during desk hours.</p>
+  <h3>Already in the car</h3>
+  <div class="flow">
+    <div class="box night">Mark in the vehicle</div><span class="arrow">→</span>
+    <div class="box">Pay</div><span class="arrow">→</span>
+    <div class="box gold">Seat fare</div>
+  </div>
+  <p>The header carries Home, About Us, Services, Pool a Ride, and Contact Us. Pay for your ride is the action on the home page and at the end of Services.</p>
+</section>
+
+<section id="pay">
+  <span class="num">05</span>
+  <h2>How a seat is paid</h2>
+  <hr class="goldline" />
+  <p>The pay screen is one column, centred. A loader with the mark and a gold car shows while the screen prepares, and again whenever a step is working.</p>
+  <div class="flow">
+    <div class="box">Loader</div><span class="arrow">→</span>
+    <div class="box">Name and seats</div><span class="arrow">→</span>
+    <div class="box gold">Choose payment</div>
+  </div>
+  <div class="flow">
+    <div class="box wine">Cash</div><span class="arrow">→</span>
+    <div class="box">Waiting for the desk</div><span class="arrow">→</span>
+    <div class="box gold">Paid</div>
+  </div>
+  <div class="flow">
+    <div class="box wine">Pay online</div><span class="arrow">→</span>
+    <div class="box">Razorpay</div><span class="arrow">→</span>
+    <div class="box gold">Paid</div><span class="arrow">→</span>
+    <div class="box">Thanks</div>
+  </div>
+  <ol>
+    <li>The passenger enters a name. A mobile number is optional.</li>
+    <li>They choose how many seats, from 1 to 8, and the destination.</li>
+    <li>The total is the destination fare times the seats. That amount is shown before they pay.</li>
+    <li>The screen states that the fare is for their own clean seat, that mineral water is included, and that luggage is attended to before they sit.</li>
+    <li>They choose cash or pay online. There is no separate Google Pay or PhonePe button.</li>
+    <li>After payment, a short note can be left. Feedback is accepted once the ride is paid.</li>
+  </ol>
+</section>
+
+<section id="money">
+  <span class="num">06</span>
+  <h2>Cash and online payment</h2>
+  <hr class="goldline" />
+  <div class="grid">
+    <div class="card"><strong>Cash</strong>The ride is stored as cash waiting. The desk confirms it. Until that confirmation, the ride is not paid.</div>
+    <div class="card"><strong>Online</strong>An order is opened with Razorpay. The passenger pays in that window. The signature is checked, then the ride is marked paid.</div>
+  </div>
+  <h3>Online, step by step</h3>
+  <div class="flow">
+    <div class="box">Ride created</div><span class="arrow">→</span>
+    <div class="box">Order opened</div><span class="arrow">→</span>
+    <div class="box wine">Passenger pays</div><span class="arrow">→</span>
+    <div class="box">Signature checked</div><span class="arrow">→</span>
+    <div class="box gold">Ride paid</div>
+  </div>
+  <p>Razorpay also sends a notice to the site when a payment is captured. That address accepts a post only. Opening it in a browser returns “method not allowed”, which is the correct answer.</p>
+  <p>Phase 1 online payment is in test mode. A live bank key is used only when the founder supplies it. The test window is enough to prove the path.</p>
+  <p class="note">The amount stored on the ride is a snapshot: fare per seat times seats. Later edits to a destination fare do not rewrite a ride already created.</p>
+</section>
+
+<section id="records">
+  <span class="num">07</span>
+  <h2>What is stored</h2>
+  <hr class="goldline" />
+  <table>
+    <tr><th>Record</th><th>What it holds</th></tr>
+    <tr><td>Customer</td><td>Name, and a mobile number when one was given.</td></tr>
+    <tr><td>Destination</td><td>The town name and the fare for one seat.</td></tr>
+    <tr><td>Ride</td><td>A public number such as RV-2026-000001, the seats, the fare snapshot, and the status.</td></tr>
+    <tr><td>Payment</td><td>Cash or Razorpay, the amount, and whether it is waiting, paid, or failed.</td></tr>
+    <tr><td>Message</td><td>A note from the contact form: name, mobile, optional email, and the words.</td></tr>
+    <tr><td>Comment</td><td>A passenger line. It appears on the home page only when it is published.</td></tr>
+    <tr><td>Staff</td><td>A signed-in person with the role CEO or Admin.</td></tr>
+    <tr><td>Activity</td><td>A visit or a recorded event, kept in the activity log.</td></tr>
+  </table>
+  <h3>Ride status</h3>
+  <div class="flow">
+    <div class="box">Created</div><span class="arrow">→</span>
+    <div class="box wine">Cash waiting</div>
+    <div class="box wine">Payment waiting</div><span class="arrow">→</span>
+    <div class="box gold">Paid</div>
+  </div>
+  <p>A failed or cancelled ride stops there. Feedback is offered after the status is paid.</p>
+</section>
+
+<section id="desk">
+  <span class="num">08</span>
+  <h2>The operations desk</h2>
+  <hr class="goldline" />
+  <p>Staff open the desk and sign in. The desk is the only place that confirms cash, changes a destination, or publishes a comment.</p>
+  <table>
+    <tr><th>Tab</th><th>The work</th></tr>
+    <tr><td>Rides</td><td>Read the day. Confirm cash. See online payment.</td></tr>
+    <tr><td>Destinations</td><td>Keep the town list and the fare for one seat.</td></tr>
+    <tr><td>Customers</td><td>See who has paid or written in.</td></tr>
+    <tr><td>Messages</td><td>Read what the contact form stored.</td></tr>
+    <tr><td>Testimonials</td><td>Publish or hold a comment for the home page.</td></tr>
+    <tr><td>Vehicle mark</td><td>The mark that opens the pay screen from inside the car.</td></tr>
+    <tr><td>Settings</td><td>Phone, WhatsApp, email, address, and desk hours shown on the site.</td></tr>
+  </table>
+  <div class="flow">
+    <div class="box">Cash ride arrives</div><span class="arrow">→</span>
+    <div class="box wine">Desk confirms</div><span class="arrow">→</span>
+    <div class="box gold">Ride is paid</div>
+  </div>
+  <p class="note">CEO and Admin are the two staff roles. A passenger screen never asks for a password.</p>
+</section>
+
+<section id="brand">
+  <span class="num">09</span>
+  <h2>Colour and type</h2>
+  <hr class="goldline" />
+  <p>The site and this document use one palette. Night is the ground. Cream is the page. Burgundy is the action. Gold marks a rule or a live point.</p>
+  <table>
+    <tr><th>Name</th><th>Value</th><th>Where it is used</th></tr>
+    <tr><td>Night</td><td>#12060D</td><td>Page ground, form ink on the dark screens</td></tr>
+    <tr><td>Cherry</td><td>#4C102C</td><td>Deep panels</td></tr>
+    <tr><td>Burgundy</td><td>#6B1838</td><td>Buttons and headings</td></tr>
+    <tr><td>Cream</td><td>#F6F1DC</td><td>Words on night, and the paper of this document</td></tr>
+    <tr><td>Gold</td><td>#D6A000</td><td>Lines, stars, focus</td></tr>
+    <tr><td>Gold bright</td><td>#E0B23A</td><td>A live highlight</td></tr>
+  </table>
+  <p>Form fields stay night with cream writing, including after the browser fills them in. A light form, such as a search on cream, keeps dark ink on cream so the field does not turn white against the template.</p>
+  <p>The mark is a cream R on night, with a gold edge and a gold underline. Display lines use a serif. Labels and buttons use a plain sans.</p>
+</section>
+
+<section id="boundary">
+  <span class="num">10</span>
+  <h2>The edge of this phase</h2>
+  <hr class="goldline" />
+  <p>Phase 1 is complete enough to show, to take payment in test mode, and to keep the desk. The items below are named so a later phase does not get mixed into this one.</p>
+  <div class="grid">
+    <div class="card"><strong>In this phase</strong>Public pages, contact confirmation, moving comments, cash, Razorpay test checkout, and the staff desk.</div>
+    <div class="card"><strong>Held for later</strong>Live bank keys, Google sign-in, a separate Google Pay or PhonePe button, and a passenger account.</div>
+  </div>
+  <h3>How to read the profit plan beside this</h3>
+  <p>The five-year profit plan is a separate paper. It prices Car 1 on Hyderabad–Khammam with the founder driving, and Car 2 on Hyderabad–Vijayawada with two drivers. This website does not calculate that yearly profit. It collects the seat fare the desk has set for each destination.</p>
+  <p>Car 1 in that plan has no hired driver. The figure kept for it is ₹60,000 a month before EMI, insurance, servicing, and the office.</p>
+  <p class="foot">ROVEYA · Phase 1 codebase · Print on A4 · Night, burgundy, cream, and gold · Shaik Asif Nawaz, Founder and CEO</p>
+</section>
+
+</body>
+</html>
