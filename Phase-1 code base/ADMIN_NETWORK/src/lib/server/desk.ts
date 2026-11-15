@@ -175,7 +175,7 @@ export function checkExpiry(value: string | undefined, documentTitle: string) {
   return value;
 }
 
-export async function deskAction(admin: Admin, id: string, input: { action: "claim" | "release" | "doc" | "car" | "approve" | "decline"; kind?: string; status?: "verified" | "rejected"; note?: string; force?: boolean; expiresOn?: string }) {
+export async function deskAction(admin: Admin, id: string, input: { action: "claim" | "release" | "doc" | "car" | "approve" | "decline" | "autoverify"; kind?: string; status?: "verified" | "rejected"; note?: string; force?: boolean; expiresOn?: string }) {
   const detail = await deskVado(id);
   const captain = detail.captain;
   const now = new Date().toISOString();
@@ -214,6 +214,23 @@ export async function deskAction(admin: Admin, id: string, input: { action: "cla
     await controls().from("vado_claims").delete().eq("captain_id", id);
     const took = Math.round((Date.now() - Date.parse(clockStart(captain))) / 60000);
     await audit(admin, "captain.approve", "captain", id, { service: detail.service, minutes: took, withinTime: took <= detail.minutes, via: "support_desk" });
+  } else if (input.action === "autoverify") {
+    if (captain.status !== "review") throw new ApiError("This Vado is already decided.", 409);
+    await takeClaim();
+    const expiresOn = "2030-12-31";
+    const kinds = [...required(detail.service), ...(detail.service === "carpool" ? CARPOOL_OPTIONAL : [])];
+    const { data: existing } = await db().from("captain_documents").select("kind").eq("captain_id", id);
+    const have = new Set(((existing ?? []) as Row[]).map((row) => row.kind as string));
+    for (const kind of kinds) {
+      const patch = { status: "verified", review_note: null, reviewed_at: now, ...(EXPIRING.includes(kind) ? { expires_on: expiresOn, expiry_notice: null } : {}) };
+      if (have.has(kind)) await db().from("captain_documents").update(patch).eq("captain_id", id).eq("kind", kind);
+      else await db().from("captain_documents").insert({ captain_id: id, kind, ...patch });
+    }
+    if (detail.car) await db().from("seat_cars").update({ status: "active", review_note: null }).eq("captain_id", id);
+    check(await db().from("captains").update({ status: "active", status_note: null, approved_at: now }).eq("user_id", id).eq("status", "review").select("user_id").single());
+    await controls().from("vado_claims").delete().eq("captain_id", id);
+    const took = Math.round((Date.now() - Date.parse(clockStart(captain))) / 60000);
+    await audit(admin, "captain.approve", "captain", id, { service: detail.service, minutes: took, withinTime: took <= detail.minutes, via: "auto_verify" });
   } else {
     if (!input.note) throw new ApiError("Write the reason the Vado will see.", 400);
     await takeClaim();

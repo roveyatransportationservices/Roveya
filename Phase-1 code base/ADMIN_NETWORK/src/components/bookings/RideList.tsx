@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Download, Plus } from "lucide-react";
@@ -169,8 +169,9 @@ function NewRide({ service, onClose }: { service: "bike" | "auto" | "taxi"; onCl
   const [passenger, setPassenger] = useState<Passenger | null>(null);
   const [pickup, setPickup] = useState<Place | null>(null);
   const [drop, setDrop] = useState<Place | null>(null);
-  const [payment, setPayment] = useState<"cash" | "wallet">("cash");
+  const [payment, setPayment] = useState<"cash" | "upi" | "online">("cash");
   const [quote, setQuote] = useState<{ value: Quote | null; error: string }>({ value: null, error: "" });
+  const requestKey = useRef(`desk${crypto.randomUUID().replace(/-/g, "").slice(0, 20)}`);
 
   useEffect(() => {
     if (!pickup || !drop) {
@@ -182,12 +183,11 @@ function NewRide({ service, onClose }: { service: "bike" | "auto" | "taxi"; onCl
       .catch((failure: Error) => setQuote({ value: null, error: failure.message }));
   }, [pickup, drop, info.vehicle]);
 
-  const walletShort = payment === "wallet" && passenger && quote.value && passenger.walletPaise < quote.value.farePaise;
-  const ready = Boolean(passenger && !passenger.openRide && pickup && drop && quote.value && !walletShort);
+  const ready = Boolean(passenger && !passenger.openRide && pickup && drop && quote.value);
 
   const submit = async () => {
     if (!pickup || !drop) return;
-    const result = await run("create", () => api<{ ride: { id: string; code: string } }>("/rides", { body: { vehicle: info.vehicle, phone, pickup: { name: pickup.name, latitude: pickup.latitude, longitude: pickup.longitude }, drop: { name: drop.name, latitude: drop.latitude, longitude: drop.longitude }, payment } }), "Ride booked. Offering it to the nearest captain.");
+    const result = await run("create", () => api<{ ride: { id: string; code: string } }>("/rides", { body: { vehicle: info.vehicle, phone, pickup: { name: pickup.name, latitude: pickup.latitude, longitude: pickup.longitude }, drop: { name: drop.name, latitude: drop.latitude, longitude: drop.longitude }, payment, requestKey: requestKey.current } }), "Ride booked. Offering it to the nearest captain.");
     if (result) router.push(`/bookings/${service}/${result.ride.id}`);
   };
 
@@ -201,10 +201,11 @@ function NewRide({ service, onClose }: { service: "bike" | "auto" | "taxi"; onCl
           <span className="label">Payment</span>
           <Chips
             value={payment}
-            onChange={(value) => setPayment(value as "cash" | "wallet")}
+            onChange={(value) => setPayment(value as "cash" | "upi" | "online")}
             options={[
               ["cash", "Cash to captain"],
-              ["wallet", "ROVEYA Cash"],
+              ["upi", "UPI to captain"],
+              ["online", "Online payment"],
             ]}
           />
         </div>
@@ -217,7 +218,6 @@ function NewRide({ service, onClose }: { service: "bike" | "auto" | "taxi"; onCl
             <p className="text-[11px] muted">
               About {quote.value.km.toFixed(1)} km · {quote.value.etaMin} min{quote.value.bonusPaise ? ` · peak-hour captain bonus ${rs(quote.value.bonusPaise)}` : ""}
             </p>
-            {walletShort ? <p className="mt-1 text-[11px] text-danger">ROVEYA Cash is too low for this fare. Choose cash.</p> : null}
           </div>
         ) : quote.error ? (
           <p className="text-[12px] text-danger">{quote.error}</p>

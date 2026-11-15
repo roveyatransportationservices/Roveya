@@ -96,6 +96,12 @@ export function DeskReview({ service, id }: { service: ServiceKey; id: string })
     const note = await ask({ title: "Ask the Vado to fix the car?", body: "They see this in the app.", confirm: "Send", danger: true, input: { label: "What should they fix?", required: true } });
     if (note) await act("car", { action: "car", status, note }, "Request sent to the Vado.");
   };
+  const autoVerify = async () => {
+    const yes = await ask({ title: `Auto verify ${c.name}?`, body: "Every required document is marked verified and the account opens.", confirm: "Auto verify" });
+    if (!yes) return;
+    const next = await act("autoverify", { action: "autoverify" }, `${c.name} is verified and can start now.`);
+    if (next) claimed.current = false;
+  };
   const approve = async () => {
     const yes = await ask({ title: `Approve ${c.name}?`, body: "Their account opens at once. They can go on duty and take rides from the next moment.", confirm: "Approve Vado" });
     if (!yes) return;
@@ -134,7 +140,10 @@ export function DeskReview({ service, id }: { service: ServiceKey; id: string })
                 <button type="button" className="btn btn-danger" disabled={Boolean(busy)} onClick={() => void decline()}>
                   {busy === "decline" ? <Spinner /> : <Ban size={14} />} Decline
                 </button>
-                <button type="button" className="btn btn-gold" disabled={Boolean(busy) || !data.state.ready} title={data.state.ready ? "" : "Verify every required document first"} onClick={() => void approve()}>
+                <button type="button" className="btn btn-gold" disabled={Boolean(busy)} onClick={() => void autoVerify()}>
+                  {busy === "autoverify" ? <Spinner /> : <ShieldCheck size={14} />} Auto verify
+                </button>
+                <button type="button" className="btn" disabled={Boolean(busy) || !data.state.ready} title={data.state.ready ? "" : "Verify every required document first"} onClick={() => void approve()}>
                   {busy === "approve" ? <Spinner /> : <ShieldCheck size={14} />} Approve Vado
                 </button>
               </>

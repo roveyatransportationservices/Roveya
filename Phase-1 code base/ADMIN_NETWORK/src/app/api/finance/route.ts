@@ -27,7 +27,7 @@ export const GET = route(async (req) => {
       .order("profit_paise", { ascending: false })
       .limit(100),
     controls().from("seat_booking_facts").select("coupon_id,discount_paise,status").not("coupon_id", "is", null).gte("confirmed_at", istStart(from)).lt("confirmed_at", istStart(shiftIst(to, 1))),
-    db().from("platform_settings").select("key,value").in("key", ["seat_commission_pct", "seat_hold_minutes"]),
+    db().from("platform_settings").select("key,value").in("key", ["booking_fee_percent", "seat_hold_minutes"]),
     db().from("ledger_entries").select("kind,amount_paise").in("kind", ["seat_earning", "payout", "payout_reversal"]).neq("owner_id", "00000000-0000-0000-0000-000000000001").gte("created_at", istStart(from)).lt("created_at", istStart(shiftIst(to, 1))).limit(20000),
   ]);
 
@@ -57,7 +57,7 @@ export const GET = route(async (req) => {
   return {
     from,
     to,
-    commissionPct: setting("seat_commission_pct") || 10,
+    commissionPct: setting("booking_fee_percent") || 10,
     services,
     totals,
     margin: totals.collected_paise ? totals.profit_paise / totals.collected_paise : 0,

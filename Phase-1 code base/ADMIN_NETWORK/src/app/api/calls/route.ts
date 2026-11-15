@@ -35,10 +35,7 @@ export const POST = route(async (req) => {
   if (input.action === "bridge") {
     if (!admin.phone) throw new ApiError("Add your mobile number in Admin team first, so ROVEYA knows which phone to ring.", 400);
     const result = await bridge(admin.phone, input.phone);
-    if (!result) throw new ApiError("Calls through the ROVEYA line need Exotel set up. Call from your phone for now.", 409);
-    if (!result.ok) throw new ApiError("Exotel could not place the call. Try again or call from your phone.", 502);
-    mode = "bridged";
-    sid = result.sid;
+    if (!result) throw new ApiError("Private call connecting is off until launch. Call from your phone.", 409);
   }
   const saved = check(
     await controls()
@@ -48,5 +45,5 @@ export const POST = route(async (req) => {
       .single(),
   );
   await audit(admin, `call.${input.action}`, input.entity ?? "call", input.entityId ?? String(saved.id), { phone: input.phone, outcome: input.outcome ?? null });
-  return { call: saved, message: mode === "bridged" ? `ROVEYA is ringing your phone (+91 ${admin.phone}). Pick up to be connected.` : "Call saved." };
+  return { call: saved, message: "Call saved." };
 });

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { check, readBody, route, search, term } from "@/lib/server/api";
 import { audit, requireAdmin } from "@/lib/server/auth";
+import { limitUnlessReplay } from "@/lib/server/rateLimit";
 import { createCityRide } from "@/lib/server/bookings";
 import { istStart, people, shiftIst, type Row } from "@/lib/server/data";
 import { db } from "@/lib/server/db";
@@ -50,13 +51,16 @@ const create = z.object({
   phone: z.string().regex(/^[6-9]\d{9}$/, "Enter the passenger's 10-digit mobile number."),
   pickup: place,
   drop: place,
-  payment: z.enum(["cash", "wallet"]),
+  payment: z.enum(["cash", "upi", "online"]),
+  requestKey: z.string().regex(/^[A-Za-z0-9_.:-]{8,80}$/, "The booking key is not valid.").optional(),
 });
 
 // The desk books a bike or auto ride for a passenger who called in.
 export const POST = route(async (req) => {
   const admin = await requireAdmin("rides.manage");
   const input = await readBody(req, create);
+  const existing = input.requestKey ? await db().from("trips").select("id").eq("request_key", input.requestKey).maybeSingle() : { data: null };
+  await limitUnlessReplay("desk-book", admin.id, 30, 60, "Too many desk bookings. Wait a minute and try again.", Boolean(existing.data));
   const trip = await createCityRide(input);
   await audit(admin, "ride.create", "ride", trip.id, { code: trip.code, vehicle: trip.vehicle, phone: input.phone, pickup: input.pickup.name, drop: input.drop.name, payment: input.payment, farePaise: trip.fare_paise });
   return { ride: rideLine(trip) };

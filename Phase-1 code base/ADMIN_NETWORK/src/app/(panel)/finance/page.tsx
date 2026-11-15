@@ -85,12 +85,12 @@ export default function FinancePage() {
   const tiles: [string, number, string, string?][] = [
     ["Collected from travellers", t.collected_paise, "text-cream", `${num(t.bookings)} bookings · ${num(t.seats)} seats`],
     ["Seat fares", t.fare_paise, "text-cream", "Before GST and add-ons"],
-    [`Commission (${data.commissionPct}%)`, t.commission_paise, "text-sky", "ROVEYA's share of seat fares"],
+    [`Booking fees (${data.commissionPct}%)`, t.commission_paise, "text-sky", "Paid by passengers. Captains keep the seat fare."],
     ["Secure your trip fees", t.secure_paise, "text-sky", "₹19 a seat when chosen"],
     ["Kept on cancellations", t.kept_on_cancel_paise, "text-sky", `${num(t.cancellations)} cancellations`],
     ["Coupon discounts", -t.discount_paise, "text-amber", "Paid for by ROVEYA"],
-    ["Refunds to ROVEYA Cash", t.refund_paise, "text-amber", "Cancelled bookings"],
-    ["GST payable", t.gst_paise, "text-rose", "5% of seat fares, owed to the government"],
+    ["Refunds", t.refund_paise, "text-amber", "Wallet credits and gateway refunds"],
+    ["GST payable", t.gst_paise, "text-rose", "18% of the booking fee, owed to the government"],
     ["Captain share", t.captain_share_paise, "text-cream", "Paid into captain wallets on trip completion"],
   ];
 
@@ -106,14 +106,14 @@ export default function FinancePage() {
           <p className="text-4xl font-bold tabular-nums text-gold">{rs(t.profit_paise)}</p>
           <p className="mt-1 text-xs muted">Margin {pct(data.margin, 1)} of money collected</p>
           <div className="mt-5 space-y-0.5 border-t border-line pt-4">
-            <Row label="Commission" value={`+ ${rs(t.commission_paise)}`} tone="text-success" />
+            <Row label="Booking fee" value={`+ ${rs(t.commission_paise)}`} tone="text-success" />
             <Row label="Secure your trip fees" value={`+ ${rs(t.secure_paise)}`} tone="text-success" />
             <Row label="Kept on cancellations" value={`+ ${rs(t.kept_on_cancel_paise)}`} tone="text-success" />
             <Row label="Coupon discounts" value={`− ${rs(t.discount_paise)}`} tone="text-danger" />
             <div className="my-2 border-t border-line" />
             <Row label="Net profit" value={rs(t.profit_paise)} tone="font-semibold text-gold" />
           </div>
-          <p className="mt-4 text-[11px] leading-5 muted">GST is collected for the government and is not counted as profit. Commission uses the current {data.commissionPct}% rate; completed trips match the captain wallet ledger.</p>
+          <p className="mt-4 text-[11px] leading-5 muted">GST on the booking fee is collected for the government and is not counted as profit. The booking fee uses the current {data.commissionPct}% rate, with the minimum and maximum set in Settings. Completed trips match the captain wallet ledger.</p>
         </Panel>
 
         <div className="grid gap-5 sm:grid-cols-3 lg:col-span-8">
@@ -209,9 +209,6 @@ export default function FinancePage() {
             ) : (
               <Empty text="No coupons used in this range." />
             )}
-            <Link href="/offers" className="btn mt-4 w-full">
-              Manage offers
-            </Link>
           </Panel>
         </div>
 

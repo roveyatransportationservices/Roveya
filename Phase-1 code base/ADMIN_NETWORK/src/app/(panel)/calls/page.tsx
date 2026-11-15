@@ -27,7 +27,7 @@ export default function CallsPage() {
             {/^[6-9]\d{9}$/.test(dial) ? <CallButton phone={dial} kind="Other" entity="call" /> : <button type="button" className="btn" disabled><Phone size={14} /> Call</button>}
           </div>
           <p className="mt-3 text-[11px] muted">
-            {list.data?.bridgeReady ? `The ROVEYA line rings your phone${list.data.myPhone ? ` (+91 ${list.data.myPhone})` : ""} first, then connects. Numbers stay private.` : "The ROVEYA line works once Exotel is added to the server. Until then calls go from your own phone and are logged here."}
+            Calls from your own phone are logged here. Private call connecting is off until launch.
           </p>
         </Panel>
       </div>

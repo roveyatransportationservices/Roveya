@@ -40,8 +40,16 @@ export function rideLine(trip: Row) {
 
 // Posts billing and analytics events straight away, so the captain's earning
 // and ROVEYA's commission show up without waiting for the minute job.
-export async function kickConsumers() {
-  await Promise.allSettled([db().rpc("consume_billing", { p_limit: 500 }), db().rpc("consume_analytics", { p_limit: 500 })]);
+let consumers: Promise<void> | null = null;
+
+// One run at a time. The database functions move their own offset, and settle_trip
+// refuses a trip that already has a ledger line, so a second call does not pay twice.
+export function kickConsumers() {
+  if (consumers) return consumers;
+  consumers = Promise.allSettled([db().rpc("consume_billing", { p_limit: 500 }), db().rpc("consume_analytics", { p_limit: 500 })]).then(() => undefined).finally(() => {
+    consumers = null;
+  });
+  return consumers;
 }
 
 export const whoOwns = (trip: Row, ownerId: string) => (ownerId === PLATFORM_WALLET ? "ROVEYA" : ownerId === trip.rider_id ? "Passenger" : ownerId === trip.captain_id ? "Captain" : "Other");

@@ -74,6 +74,13 @@ export default function CaptainPage({ params }: { params: Promise<{ id: string }
     if (next) setData(next);
   };
 
+  const autoVerify = async () => {
+    const yes = await ask({ title: `Auto verify ${c.name}?`, body: "Every required document is marked verified and the account opens.", confirm: "Auto verify" });
+    if (!yes) return;
+    const done = await run("autoverify", () => api(`/desk/vado/${id}`, { body: { action: "autoverify" } }), "Captain verified.");
+    if (done) void reload();
+  };
+
   const reviewDoc = async (kind: string, status: "verified" | "rejected") => {
     let note: string | undefined;
     if (status === "rejected") {
@@ -121,8 +128,8 @@ export default function CaptainPage({ params }: { params: Promise<{ id: string }
             {can("captains.review") ? (
               <>
               {c.status === "review" ? (
-                <button type="button" className="btn btn-gold" disabled={Boolean(busy)} onClick={() => void decide("approve")}>
-                  {busy === "approve" ? <Spinner /> : <ShieldCheck size={14} />} Approve captain
+                <button type="button" className="btn btn-gold" disabled={Boolean(busy)} onClick={() => void autoVerify()}>
+                  {busy === "autoverify" ? <Spinner /> : <ShieldCheck size={14} />} Auto verify
                 </button>
               ) : null}
               {c.status === "active" ? (

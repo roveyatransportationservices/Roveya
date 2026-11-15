@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { ClipboardPlus, Phone, PhoneCall } from "lucide-react";
+import { ClipboardPlus, Phone } from "lucide-react";
 import { api, useData } from "@/lib/client";
-import { label, when } from "@/lib/format";
+import { label } from "@/lib/format";
 import { useAdmin } from "./Shell";
 import { Field, Modal, Spinner, useAction } from "./ui";
 
@@ -19,25 +19,13 @@ const OUTCOMES: [string, string][] = [
 ];
 
 function CallModal({ phone, name, kind, entity, entityId, onClose }: { phone: string; name?: string; kind?: Kind; entity?: string; entityId?: string; onClose: () => void }) {
-  const { data } = useData<{ calls: CallRow[]; bridgeReady: boolean; myPhone: string | null }>(`/calls?phone=${phone}&size=5`);
   const { busy, run } = useAction();
   const [stage, setStage] = useState<"pick" | "after">("pick");
-  const [bridged, setBridged] = useState<{ id: number; message: string } | null>(null);
   const [outcome, setOutcome] = useState("reached");
   const [note, setNote] = useState("");
 
-  const ring = async () => {
-    const result = await run("ring", () => api<{ call: { id: number }; message: string }>("/calls", { body: { action: "bridge", phone, name, kind, entity, entityId } }));
-    if (result) {
-      setBridged({ id: result.call.id, message: result.message });
-      setStage("after");
-    }
-  };
-
   const save = async () => {
-    const done = bridged
-      ? await run("save", () => api(`/calls/${bridged.id}`, { method: "PATCH", body: { outcome, note } }), "Call saved.")
-      : await run("save", () => api("/calls", { body: { action: "log", phone, name, kind, entity, entityId, outcome, note } }), "Call saved.");
+    const done = await run("save", () => api("/calls", { body: { action: "log", phone, name, kind, entity, entityId, outcome, note } }), "Call saved.");
     if (done) onClose();
   };
 
@@ -49,18 +37,12 @@ function CallModal({ phone, name, kind, entity, entityId, onClose }: { phone: st
       </p>
       {stage === "pick" ? (
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
-          <button type="button" className="btn btn-gold py-2.5" disabled={!data?.bridgeReady || busy === "ring"} onClick={() => void ring()} title={data?.bridgeReady ? "" : "Needs Exotel set up"}>
-            {busy === "ring" ? <Spinner /> : <PhoneCall size={15} />} Ring through ROVEYA line
-          </button>
-          <a href={`tel:+91${phone}`} className="btn py-2.5" onClick={() => setStage("after")}>
+          <a href={`tel:+91${phone}`} className="btn btn-gold py-2.5" onClick={() => setStage("after")}>
             <Phone size={15} /> Call from my phone
           </a>
-          {data && !data.bridgeReady ? <p className="text-[11px] muted sm:col-span-2">The ROVEYA line (numbers kept private) starts working once Exotel is added to the server settings.</p> : null}
-          {data?.bridgeReady && !data.myPhone ? <p className="text-[11px] text-amber sm:col-span-2">Add your mobile number in Admin team so ROVEYA can ring you first.</p> : null}
         </div>
       ) : (
         <div className="mt-4 space-y-3">
-          {bridged ? <p className="rounded border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">{bridged.message}</p> : null}
           <Field label="How did it go?">
             <div className="flex flex-wrap gap-1.5">
               {OUTCOMES.map(([key, text]) => (
@@ -83,18 +65,6 @@ function CallModal({ phone, name, kind, entity, entityId, onClose }: { phone: st
           </div>
         </div>
       )}
-      {data?.calls.length ? (
-        <div className="mt-5 border-t border-line pt-3">
-          <p className="mb-1.5 text-[11px] muted">Earlier calls to this number</p>
-          {data.calls.map((call) => (
-            <p key={call.id} className="py-1 text-[12px]">
-              <span className="muted">{when(call.created_at)} · {call.admin_name ?? "—"} · </span>
-              {label(call.outcome ?? "not recorded")}
-              {call.note ? <span className="block text-[11px] muted">{call.note}</span> : null}
-            </p>
-          ))}
-        </div>
-      ) : null}
     </Modal>
   );
 }

@@ -99,7 +99,7 @@ export const POST = route<{ id: string }>(async (req, { id }) => {
       await notify(trip.rider_id, "rider", `New captain for ${trip.code}`, `${captain.name.split(" ")[0]} is on the way. Open the app to track the ride.`, data);
     }
   } else {
-    if (trip.payment !== "cash" || trip.status !== "completed" || trip.payment_status === "paid") throw new ApiError("Only a completed cash ride that is still due can be marked collected.", 409);
+    if (!["cash", "upi", "online"].includes(String(trip.payment)) || trip.status !== "completed" || trip.payment_status === "paid") throw new ApiError("Only a completed ride that is still due can be marked collected.", 409);
     check(await db().from("trips").update({ payment_status: "paid" }).eq("id", id).select("id").single());
   }
   void kickConsumers();
@@ -110,7 +110,7 @@ export const POST = route<{ id: string }>(async (req, { id }) => {
 const edit = z.object({
   pickupName: z.string().trim().min(2).max(120).optional(),
   dropName: z.string().trim().min(2).max(120).optional(),
-  payment: z.enum(["cash", "wallet"]).optional(),
+  payment: z.enum(["cash", "upi", "online"]).optional(),
   reason: z.string().trim().min(3, "Add a short reason.").max(120),
 });
 
@@ -125,10 +125,6 @@ export const PATCH = route<{ id: string }>(async (req, { id }) => {
   if (input.dropName && input.dropName !== trip.drop_name) fields.drop_name = input.dropName;
   if (input.payment && input.payment !== trip.payment) {
     if (trip.payment_status !== "due" || !["searching", "assigned", "arrived", "on_trip", "completed"].includes(trip.status)) throw new ApiError("Payment can change only while the fare is still due.", 409);
-    if (input.payment === "wallet") {
-      const { data: wallet } = await db().from("wallets").select("balance_paise").eq("owner_id", trip.rider_id).maybeSingle();
-      if (!wallet || Number(wallet.balance_paise) < owed(trip)) throw new ApiError("The passenger's ROVEYA Cash is too low for this fare.", 402);
-    }
     fields.payment = input.payment;
   }
   if (!Object.keys(fields).length) throw new ApiError("Nothing changed.", 400);

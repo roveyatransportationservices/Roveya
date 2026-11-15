@@ -5,9 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Activity,
-  BadgePercent,
   BarChart3,
-  Bell,
   Bike,
   Briefcase,
   CalendarClock,
@@ -32,7 +30,6 @@ import {
   Monitor,
   Moon,
   Network,
-  PhoneCall,
   Radio,
   Search,
   Settings,
@@ -243,9 +240,7 @@ const DESK_NAV: (NavItem | NavGroup)[] = [
   },
   { href: "/desk/lookup", label: "Look up", icon: Search, need: ["view.support", "safety.respond", "view.captains"] },
   { href: "/support", label: "Support tickets", icon: MessageSquare, badge: "tickets", tone: "bg-sky text-ink", need: ["view.support"] },
-  { href: "/calls", label: "Calls", icon: PhoneCall, need: ["calls.make"] },
   { href: "/notify", label: "Notifications", icon: Megaphone, need: ["notify.send"] },
-  { href: "/safety", label: "Safety & SOS", icon: ShieldAlert, badge: "sos", tone: "bg-danger text-ink", need: ["view.safety"] },
   RATINGS,
   { href: "/desk/performance", label: "My performance", icon: BarChart3 },
   { href: "/desk/settings", label: "Settings", icon: Settings },
@@ -259,9 +254,9 @@ const NAV: (NavItem | NavGroup)[] = [
   { href: "/networks", label: "Carpool Networks", icon: Network, need: ["view.trips"], also: ["/trips"] },
   LIVE_TRIPS,
   { href: "/rides/fares", label: "Bike & auto fares", icon: IndianRupee, need: ["view.rides"] },
+  { href: "/rides/dispatch", label: "Ride dispatch", icon: Radio, need: ["view.rides"] },
   RIDERS_AND_VADO,
   PAYMENTS,
-  { href: "/offers", label: "Offers & promo codes", icon: BadgePercent, need: ["view.offers"] },
   SUPPORT_DESK,
   HIRING,
   { href: "/audit", label: "Audit log", icon: History, need: ["view.audit"] },
@@ -594,12 +589,6 @@ function Frame({ admin, children }: { admin: Admin; children: ReactNode }) {
                 {alerts?.tickets ? <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-success px-1 text-[9px] font-bold text-ink">{alerts.tickets}</span> : null}
               </Link>
             ) : null}
-            {desk && allowed(admin.permissions, "view.safety") ? (
-              <Link href="/safety" className={`relative hover:text-gold ${alerts?.sos ? "animate-pulse text-danger" : "text-cream/70"}`} aria-label="Safety alerts">
-                <Bell size={18} />
-                {alerts?.sos ? <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-bold text-ink">{alerts.sos}</span> : null}
-              </Link>
-            ) : null}
             <div className="relative">
               <button type="button" onClick={() => setMenu(!menu)} className="flex items-center gap-2 text-xs text-cream/80">
                 <Avatar name={admin.name} size={26} />
@@ -624,22 +613,11 @@ function Frame({ admin, children }: { admin: Admin; children: ReactNode }) {
         </header>
 
         <main className="px-4 py-6 sm:px-6">
-          {!desk && alerts?.sos ? (
-            <div className={`mb-5 flex flex-wrap items-center gap-3 rounded-md border px-4 py-3 text-[13px] ${alerts.sosEscalated ? "animate-pulse border-danger bg-danger/15" : "border-danger/50 bg-danger/10"}`}>
-              <ShieldAlert size={18} className="text-danger" />
-              <span className="font-semibold text-danger">
-                {alerts.sos} open safety alert{alerts.sos === 1 ? "" : "s"}
-              </span>
-              <span className="text-cream/80">
-                {alerts.sosEscalated ? `${alerts.sosEscalated} SOS not picked up in time · the on-call people are being called.` : "The Support Desk is handling them."}
-              </span>
-            </div>
-          ) : null}
           {outside ? null : deskOnly ? (
             <div className="panel mx-auto mt-10 max-w-md p-8 text-center">
               <Headset className="mx-auto text-gold" />
               <p className="mt-3 font-semibold">This is on the Support Desk</p>
-              <p className="mt-1 text-sm muted">Calls, Notifications, Safety & SOS and Reviews and Ratings are handled from a Support Desk login. Sign in with one in another window; both stay signed in.</p>
+              <p className="mt-1 text-sm muted">Notifications and reviews are handled from a Support Desk login. Sign in with one in another window; both stay signed in.</p>
               <Link href="/" className="btn btn-gold mt-5">
                 Back to the dashboard
               </Link>

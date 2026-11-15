@@ -4,6 +4,7 @@ import { audit, requireAdmin } from "@/lib/server/auth";
 import { activity, moneyMoved, releaseSeats, tripStops } from "@/lib/server/bookings";
 import { balances, people, type Row } from "@/lib/server/data";
 import { controls, db } from "@/lib/server/db";
+import { refundSeatPayment } from "@/lib/server/razorpay";
 
 // Unpaid holds that lapsed or were cancelled with no money moved can be deleted for good.
 const deletable = async (booking: Row) => ["pending", "expired", "cancelled"].includes(booking.status) && !(await moneyMoved(booking.id));
@@ -58,6 +59,8 @@ export const POST = route<{ id: string }>(async (req, { id }) => {
   if (input.action === "cancel") {
     if (!input.reason) throw new ApiError("Add the reason for cancelling.", 400);
     const refund = check(await db().rpc("seat_cancel", { p_booking: id, p_by: "system" }));
+    const saved = await db().from("seat_bookings").select("gateway_refund_paise").eq("id", id).maybeSingle();
+    await refundSeatPayment(id, Number(saved.data?.gateway_refund_paise ?? 0));
     await audit(admin, "booking.cancel", "seat_booking", id, { reason: input.reason, refundPaise: Number(refund) });
     return { refundPaise: Number(refund), ...(await detail(id)) };
   }

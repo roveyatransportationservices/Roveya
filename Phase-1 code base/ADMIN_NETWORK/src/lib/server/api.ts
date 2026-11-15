@@ -1,13 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { ZodError, type z, type ZodTypeAny } from "zod";
+import { ApiError } from "./errors";
 
-export class ApiError extends Error {
-  status: number;
-  constructor(message: string, status = 400) {
-    super(message);
-    this.status = status;
-  }
-}
+export { ApiError };
 
 type Ctx<P> = { params: Promise<P> };
 
@@ -18,9 +13,12 @@ export function route<P = Record<string, string>>(fn: (req: NextRequest, params:
       const result = await fn(req, await ctx.params);
       return result instanceof NextResponse ? result : NextResponse.json(result ?? { ok: true });
     } catch (error) {
-      if (error instanceof ApiError) return NextResponse.json({ error: error.message }, { status: error.status });
+      if (error instanceof ApiError) {
+        const headers = error.retryAfter ? { "Retry-After": String(error.retryAfter) } : undefined;
+        return NextResponse.json({ error: error.message }, { status: error.status, headers });
+      }
       if (error instanceof ZodError) return NextResponse.json({ error: error.issues[0]?.message ?? "Check the details and try again." }, { status: 400 });
-      console.error(error);
+      console.error(JSON.stringify({ event: "api_error", message: error instanceof Error ? error.message.slice(0, 180) : "failed" }));
       return NextResponse.json({ error: "Something went wrong on the server. Please try again." }, { status: 500 });
     }
   };

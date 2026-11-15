@@ -3,12 +3,27 @@
 import { useEffect, useState } from "react";
 import { Lock, Save } from "lucide-react";
 import { PageHead, useAdmin } from "@/components/Shell";
-import { SosOncall } from "@/components/SosOncall";
 import { Failure, Loading, Panel, Row, Spinner, useAction, useFeedback } from "@/components/ui";
+import { bookingFeeForSeat } from "@/lib/carpoolMoney";
 import { api, useData } from "@/lib/client";
 import { when } from "@/lib/format";
 
 type Setting = { key: string; label: string; unit: string; min: number; max: number; help: string; value: number | null; updatedAt: string | null };
+
+function Sample({ values }: { values: Record<string, string> }) {
+  const rules = {
+    percent: Number(values.booking_fee_percent) || 10,
+    floor: Number(values.booking_fee_floor) || 79,
+    cap: Number(values.booking_fee_cap) || 149,
+    gstPercent: Number(values.booking_fee_gst_percent) || 18,
+  };
+  const bill = bookingFeeForSeat(649, rules);
+  return (
+    <p className="mt-4 text-xs muted">
+      On a ₹649 seat the passenger pays ₹{bill.passengerPays}. That is ₹{bill.seatPrice} to the captain, a ₹{bill.fee} booking fee, and ₹{bill.gst} GST.
+    </p>
+  );
+}
 
 export default function SettingsPage() {
   const { can } = useAdmin();
@@ -35,7 +50,7 @@ export default function SettingsPage() {
     <>
       <PageHead title="Settings" sub="Platform rules the ROVEYA apps read live. Changes are recorded in the audit log." />
       <div className="grid gap-5 lg:grid-cols-2">
-        <Panel title="Fares, commission and SOS">
+        <Panel title="Booking fee">
           <div className="space-y-5">
             {data.settings.map((item) => {
               const changed = values[item.key] !== (item.value === null ? "" : String(item.value));
@@ -61,6 +76,7 @@ export default function SettingsPage() {
               );
             })}
           </div>
+          <Sample values={values} />
           {!can("settings.manage") ? (
             <p className="mt-4 flex items-center gap-2 text-xs muted">
               <Lock size={13} /> Only super admins and finance can change these.
@@ -76,7 +92,6 @@ export default function SettingsPage() {
           ))}
           <p className="mt-3 text-[11px] muted">These are part of the booking rules in the database. Changing them needs a database update so every app stays consistent.</p>
         </Panel>
-        <SosOncall canEdit={can("settings.manage")} />
       </div>
     </>
   );

@@ -200,11 +200,8 @@ export function pointsFor(cityId: string) {
 }
 
 export const CANCELLATION_SLABS = [
-  { label: "More than 48 hours before", hoursBefore: 48, refund: 100 },
-  { label: "24 to 48 hours before", hoursBefore: 24, refund: 90 },
-  { label: "6 to 24 hours before", hoursBefore: 6, refund: 75 },
-  { label: "2 to 6 hours before", hoursBefore: 2, refund: 50 },
-  { label: "Less than 2 hours before", hoursBefore: 0, refund: 0 },
+  { label: "Before the car leaves", hoursBefore: 0, refund: 100 },
+  { label: "After the car has left", hoursBefore: -1, refund: 0 },
 ];
 
 // Mirrors seat_cancel for the quote shown before a traveller confirms.

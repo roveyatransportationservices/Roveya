@@ -1,7 +1,7 @@
-import { headers } from "next/headers";
 import { z } from "zod";
 import { ApiError, readBody, route } from "@/lib/server/api";
 import { controls } from "@/lib/server/db";
+import { allow, clientAddress } from "@/lib/server/rateLimit";
 
 const schema = z.object({
   name: z.string().trim().min(2, "Enter your full name.").max(80),
@@ -11,15 +11,9 @@ const schema = z.object({
   note: z.string().trim().max(500).optional().or(z.literal("")),
 });
 
-const recent = new Map<string, number[]>();
-
 // A new team member asks for a login with their own email. Nothing opens until the CEO approves it.
 export const POST = route(async (req) => {
-  const ip = (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
-  const now = Date.now();
-  const tries = (recent.get(ip) ?? []).filter((at) => at > now - 3600000);
-  if (tries.length >= 5) throw new ApiError("Too many requests from here. Try again in an hour.", 429);
-  recent.set(ip, [...tries, now]);
+  await allow("access", clientAddress(req), 5, 3600, "Too many requests from here. Try again in an hour.");
   const input = await readBody(req, schema);
   const { data: existing } = await controls().from("admins").select("id").eq("email", input.email).maybeSingle();
   if (existing) throw new ApiError("This email already has a ROVEYA login. Sign in, or ask the CEO to reset your password.", 409);

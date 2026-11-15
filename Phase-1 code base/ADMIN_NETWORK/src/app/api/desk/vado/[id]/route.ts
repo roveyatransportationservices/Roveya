@@ -9,7 +9,7 @@ export const GET = route<{ id: string }>(async (_req, { id }) => {
 });
 
 const schema = z.object({
-  action: z.enum(["claim", "release", "doc", "car", "approve", "decline"]),
+  action: z.enum(["claim", "release", "doc", "car", "approve", "decline", "autoverify"]),
   kind: z.string().regex(/^[a-zA-Z]{2,20}$/).optional(),
   status: z.enum(["verified", "rejected"]).optional(),
   note: z.string().trim().max(200).optional(),

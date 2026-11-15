@@ -105,9 +105,9 @@ export function RideDetail({ id }: { id: string }) {
                 {busy === "cancel" ? <Spinner /> : <Ban size={14} />} Cancel ride
               </button>
             ) : null}
-            {manage && r.payment === "cash" && r.status === "completed" && r.paymentStatus !== "paid" ? (
+            {manage && (r.payment === "cash" || r.payment === "upi" || r.payment === "online") && r.status === "completed" && r.paymentStatus !== "paid" ? (
               <button type="button" className="btn btn-gold" disabled={Boolean(busy)} onClick={() => void act("collect")}>
-                {busy === "collect" ? <Spinner /> : <Banknote size={14} />} Mark cash collected
+                {busy === "collect" ? <Spinner /> : <Banknote size={14} />} {r.payment === "online" ? "Mark online received" : r.payment === "upi" ? "Mark UPI received" : "Mark cash collected"}
               </button>
             ) : null}
             {data.rider && (can("view.finance") || can("view.support")) ? (
@@ -361,7 +361,8 @@ function EditRide({ detail, onClose, onSaved }: { detail: Detail; onClose: () =>
               onChange={setPayment}
               options={[
                 ["cash", "Cash to captain"],
-                ["wallet", "ROVEYA Cash"],
+                ["upi", "UPI to captain"],
+                ["online", "Online payment"],
               ]}
             />
             <span className="mt-1 block text-[11px] muted">Changes only while the fare is still due.</span>

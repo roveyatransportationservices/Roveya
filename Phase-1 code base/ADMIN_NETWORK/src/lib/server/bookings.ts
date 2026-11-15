@@ -1,13 +1,14 @@
-import { randomInt } from "node:crypto";
+import { createHash, randomInt } from "node:crypto";
 import { z } from "zod";
 import { ApiError, check } from "./api";
 import { PLATFORM_WALLET, type Row } from "./data";
 import { controls, db } from "./db";
+import { observe } from "./observe";
 import { kickConsumers } from "./rides";
 
 // Desk bookings price exactly like the passenger app: the fare card in platform_settings,
 // road distance estimated from the straight line, and the peak-hour captain bonus.
-const DEFAULT_RATES = { bike: { base: 25, perKm: 7, min: 35 }, auto: { base: 40, perKm: 13, min: 60 }, cab: { base: 60, perKm: 16, min: 90 } } as const;
+const DEFAULT_RATES = { bike: { base: 12, perKm: 6, min: 25 }, auto: { base: 5, perKm: 10, min: 30 }, cab: { base: 60, perKm: 16, min: 90 } } as const;
 const MINUTES_PER_KM = { bike: 1, auto: 1.4, cab: 1.8 } as const;
 export type CityVehicle = keyof typeof DEFAULT_RATES;
 export type Place = { name: string; latitude: number; longitude: number };
@@ -24,27 +25,63 @@ const isPeak = (at = new Date()) => {
   return (hour >= 8 && hour < 11) || (hour >= 17 && hour < 21);
 };
 
-async function settings(keys: string[]) {
-  const { data } = await db().from("platform_settings").select("key,value").in("key", keys);
-  return new Map(((data ?? []) as Row[]).map((row) => [row.key as string, Number(row.value)]));
+const FARE_KEYS = ["fare_bike_base", "fare_bike_per_km", "fare_bike_min", "fare_auto_base", "fare_auto_per_km", "fare_auto_min", "fare_cab_base", "fare_cab_per_km", "fare_cab_min", "peak_bonus_paise"];
+let fareCache: { at: number; values: Map<string, number> } | null = null;
+const routeFlights = new Map<string, Promise<number | null>>();
+
+async function settings() {
+  if (fareCache && Date.now() - fareCache.at < 5_000) return fareCache.values;
+  const { data } = await db().from("platform_settings").select("key,value").in("key", FARE_KEYS);
+  const values = new Map(((data ?? []) as Row[]).map((row) => [row.key as string, Number(row.value)]));
+  fareCache = { at: Date.now(), values };
+  return values;
 }
 
-export async function priceRide(vehicle: CityVehicle, pickup: Place, drop: Place) {
-  const values = await settings([`fare_${vehicle}_base`, `fare_${vehicle}_per_km`, `fare_${vehicle}_min`, "peak_bonus_paise"]);
+async function loadDrivenKm(pickup: Place, drop: Place) {
+  const url = `https://router.project-osrm.org/route/v1/driving/${pickup.longitude},${pickup.latitude};${drop.longitude},${drop.latitude}?overview=false`;
+  const response = await fetch(url, { headers: { "user-agent": "ROVEYA/1.0 (city fare)" }, signal: AbortSignal.timeout(3500) }).catch(() => null);
+  if (!response?.ok) return null;
+  const data = (await response.json().catch(() => null)) as { routes?: { distance?: number }[] } | null;
+  const meters = data?.routes?.[0]?.distance;
+  if (!Number.isFinite(meters) || !meters || meters < 100) return null;
+  return meters / 1000;
+}
+
+async function drivenKm(pickup: Place, drop: Place) {
+  const key = [pickup.latitude, pickup.longitude, drop.latitude, drop.longitude].map((value) => value.toFixed(4)).join(",");
+  const existing = routeFlights.get(key);
+  if (existing) return existing;
+  const flight = loadDrivenKm(pickup, drop).finally(() => routeFlights.delete(key));
+  routeFlights.set(key, flight);
+  return flight;
+}
+
+function finishPrice(vehicle: CityVehicle, values: Map<string, number>, driven: number | null, pickup: Place, drop: Place) {
   const read = (key: string, fallback: number) => {
     const value = values.get(key);
     return value !== undefined && Number.isFinite(value) && value > 0 ? value : fallback;
   };
   const rate = DEFAULT_RATES[vehicle];
-  const km = Math.max(1, Math.round(straightKm(pickup, drop) * 1.25 * 100) / 100);
+  const km = Math.max(1, Math.round((driven ?? straightKm(pickup, drop) * 1.25) * 100) / 100);
   if (km > 300) throw new ApiError("That drop is too far for a city ride. Book Carpool Travels instead.", 400);
   const rupees = Math.max(read(`fare_${vehicle}_min`, rate.min), Math.round(read(`fare_${vehicle}_base`, rate.base) + read(`fare_${vehicle}_per_km`, rate.perKm) * km));
   return {
     km,
     etaMin: Math.max(4, Math.round(km * MINUTES_PER_KM[vehicle] + 3)),
     farePaise: rupees * 100,
-    bonusPaise: isPeak() ? read("peak_bonus_paise", 1000) : 0,
+    bonusPaise: isPeak() ? read("peak_bonus_paise", 0) : 0,
+    source: driven ? "road" as const : "estimate" as const,
   };
+}
+
+export async function priceRide(vehicle: CityVehicle, pickup: Place, drop: Place) {
+  const [values, driven] = await Promise.all([settings(), drivenKm(pickup, drop)]);
+  return finishPrice(vehicle, values, driven, pickup, drop);
+}
+
+export async function pricePair(pickup: Place, drop: Place) {
+  const [values, driven] = await Promise.all([settings(), drivenKm(pickup, drop)]);
+  return [finishPrice("bike", values, driven, pickup, drop), finishPrice("auto", values, driven, pickup, drop)] as const;
 }
 
 export async function riderByPhone(phone: string) {
@@ -55,13 +92,26 @@ export async function riderByPhone(phone: string) {
 }
 
 // A city ride booked by the desk for a passenger. Offers go out to the nearest free captain.
-export async function createCityRide(input: { vehicle: CityVehicle; phone: string; pickup: Place; drop: Place; payment: "cash" | "wallet" }) {
+export async function createCityRide(input: { vehicle: CityVehicle; phone: string; pickup: Place; drop: Place; payment: "cash" | "upi" | "online"; requestKey?: string }) {
   if (input.vehicle === "cab") throw new ApiError("ROVEYA Taxi is coming soon. Book a bike or an auto.", 400);
+  const requestKey = input.requestKey?.trim() ?? "";
+  if (requestKey && !/^[A-Za-z0-9_.:-]{8,80}$/.test(requestKey)) throw new ApiError("The booking key is not valid. Use 8 to 80 letters, numbers, or . _ : -", 400);
   const rider = await riderByPhone(input.phone);
   const price = await priceRide(input.vehicle, input.pickup, input.drop);
-  if (input.payment === "wallet") {
-    const { data: wallet } = await db().from("wallets").select("balance_paise").eq("owner_id", rider.user_id).maybeSingle();
-    if (!wallet || Number(wallet.balance_paise) < price.farePaise) throw new ApiError("The passenger's ROVEYA Cash is too low for this fare. Book with cash.", 402);
+  const fingerprint = createHash("sha256").update(JSON.stringify({
+    riderId: rider.user_id,
+    vehicle: input.vehicle,
+    payment: input.payment,
+    farePaise: price.farePaise,
+    pickup: [input.pickup.name, input.pickup.latitude, input.pickup.longitude],
+    drop: [input.drop.name, input.drop.latitude, input.drop.longitude],
+  })).digest("hex");
+  if (requestKey) {
+    const existing = await db().from("trips").select("*").eq("request_key", requestKey).maybeSingle();
+    if (existing.data) {
+      if (existing.data.rider_id !== rider.user_id || existing.data.request_fingerprint !== fingerprint) throw new ApiError("This booking key was already used for a different ride.", 409);
+      return existing.data as Row;
+    }
   }
   const inserted = await db()
     .from("trips")
@@ -79,15 +129,22 @@ export async function createCityRide(input: { vehicle: CityVehicle; phone: strin
       fare_paise: price.farePaise,
       bonus_paise: price.bonusPaise,
       payment: input.payment,
-      route_source: "estimate",
+      payment_status: "due",
+      route_source: price.source ?? "estimate",
+      ...(requestKey ? { request_key: requestKey, request_fingerprint: fingerprint } : {}),
     })
     .select("*")
     .single();
+  if (inserted.error?.code === "23505" && requestKey) {
+    const again = await db().from("trips").select("*").eq("request_key", requestKey).maybeSingle();
+    if (again.data?.rider_id === rider.user_id && again.data.request_fingerprint === fingerprint) return again.data as Row;
+  }
   if (inserted.error?.code === "23505") throw new ApiError("This passenger already has a ride in progress.", 409);
   const trip = check(inserted) as Row;
   check(await db().from("trip_secrets").insert({ trip_id: trip.id, otp: String(randomInt(1000, 10000)) }).select("trip_id").single());
-  await db().rpc("offer_next_captain", { p_trip: trip.id });
-  await notify(rider.user_id, "rider", `ROVEYA desk booked ${trip.code} for you`, `${input.vehicle === "bike" ? "Bike" : "Auto"} from ${input.pickup.name} to ${input.drop.name}. Open the app to follow your captain and see your ride code.`, { tripId: trip.id, code: trip.code });
+  const { offerNext } = await import("./cityRides");
+  void offerNext(String(trip.id));
+  void notify(rider.user_id, "rider", `ROVEYA desk booked ${trip.code} for you`, `${input.vehicle === "bike" ? "Bike" : "Auto"} from ${input.pickup.name} to ${input.drop.name}. Open the app to follow your captain and see your ride code.`, { tripId: trip.id, code: trip.code });
   void kickConsumers();
   return trip;
 }
@@ -95,10 +152,16 @@ export async function createCityRide(input: { vehicle: CityVehicle; phone: strin
 // Phone notification through the same Expo pipeline the apps use. Never fails the desk action.
 export async function notify(userId: string | null | undefined, app: "rider" | "captain", title: string, body: string, data: Record<string, unknown>, channel: "rides" | "offers" = "rides") {
   if (!userId) return;
-  await db().rpc("push_send", { p_user: userId, p_app: app, p_kind: "trip", p_title: title, p_body: body, p_data: data, p_channel: channel }).then(
-    () => undefined,
-    () => undefined,
-  );
+  const payload = { p_user: userId, p_app: app, p_kind: "trip", p_title: title, p_body: body, p_data: data, p_channel: channel };
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const sent = await Promise.race([
+      db().rpc("push_send", payload).then(() => true, () => false),
+      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 2_000)),
+    ]);
+    if (sent) return;
+    await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
+  }
+  observe("notify_failed", { app, channel });
 }
 
 // Money ever moved on a record means it can only be cancelled or refunded, never deleted.

@@ -3,7 +3,7 @@ import { requireAdmin } from "@/lib/server/auth";
 import { type Row } from "@/lib/server/data";
 import { db } from "@/lib/server/db";
 
-const PLATFORM = (process.env.NEXT_PUBLIC_PLATFORM_URL || "http://localhost:3000").replace(/\/$/, "");
+const PLATFORM = (process.env.NEXT_PUBLIC_PLATFORM_URL || "https://roveya-website-0zvf.onrender.com").replace(/\/$/, "");
 
 // Cars on the road now and cars leaving in the next 3 hours, with their last position.
 export const GET = route(async () => {
