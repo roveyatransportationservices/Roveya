@@ -1,7 +1,7 @@
 import { createHash, createHmac, randomInt, randomUUID, timingSafeEqual } from "node:crypto";
 import { ApiError } from "./api";
 import { offerNoticeKey } from "../deliveryClaim";
-import { notify, pricePair, priceRide, type CityVehicle, type Place } from "./bookings";
+import { notify, recoverQueuedNotices, pricePair, priceRide, type CityVehicle, type Place } from "./bookings";
 import { noticeCopy } from "../delivery";
 import { cityReceipt } from "../receipt";
 import { rememberReceipt } from "./deliveryStore";
@@ -571,6 +571,7 @@ export function sweepSearching() {
 const sweepGlobal = globalThis as typeof globalThis & { __roveyaOfferSweep?: ReturnType<typeof setInterval> };
 if (!sweepGlobal.__roveyaOfferSweep && process.env.NEXT_PHASE !== "phase-production-build") {
   sweepGlobal.__roveyaOfferSweep = setInterval(() => {
+    void recoverQueuedNotices().catch(() => undefined);
     void sweepSearching().catch(() => undefined);
   }, 5_000);
   sweepGlobal.__roveyaOfferSweep.unref?.();

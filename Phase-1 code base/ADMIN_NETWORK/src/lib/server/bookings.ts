@@ -250,8 +250,8 @@ async function openAndSend(eventId: string, kind: string, channel: "rides" | "of
   }
 }
 
-// This pass runs only from notify. A quiet period does not visit queued rows.
-// A later approved change may call the same pass from the existing consumer tick. Do not add a broker or a new cron job here.
+// The offer sweep calls this on its existing timer. A new offer does not wait for that timer.
+// roveya-consumers does not read communication_events, and this pass does not add a cron job or a broker.
 let recovering = false;
 
 async function recoverStranded() {
@@ -270,16 +270,19 @@ async function recoverStranded() {
   }
 }
 
+export async function recoverQueuedNotices() {
+  if (recovering) return;
+  recovering = true;
+  try {
+    await recoverStranded();
+  } finally {
+    recovering = false;
+  }
+}
+
 export async function notify(userId: string | null | undefined, app: "rider" | "captain", title: string, body: string, data: Record<string, unknown>, channel: "rides" | "offers" = "rides") {
   if (!userId) return;
-  if (!recovering) {
-    recovering = true;
-    try {
-      await recoverStranded();
-    } finally {
-      recovering = false;
-    }
-  }
+  await recoverQueuedNotices();
   const eventId = stableEventId(data.eventId);
   if (!eventId) {
     observe("notify_unkeyed", { channel });

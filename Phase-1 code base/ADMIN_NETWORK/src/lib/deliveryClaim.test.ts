@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { CLAIM_NOTE, PROVIDER_NOTE, STALE_MS, abandonMatches, afterRead, beginMatches, claimMatches, holdForCancellation, mayCallProvider, nextAction, offerNoticeKey, ownerAction, pushFromStored, reclaimMatches, stableEventId, stillRelevant, type DeliveryRow } from "./deliveryClaim";
 
@@ -151,6 +152,28 @@ test("a later delivery skips an offer that was rejected, expired, cancelled, or 
   assert.equal(stillRelevant("offer_expired", "offers", now, { offerStatus: "expired", rideStatus: "cancelled" }), false);
   assert.equal(stillRelevant("offer_expired", "offers", now, { offerStatus: "expired", rideStatus: "completed" }), false);
   assert.equal(stillRelevant("captain_assigned", "rides", now, { rideStatus: "cancelled" }), false);
+});
+
+test("queued recovery is on the offer timer and the trigger functions cannot send", () => {
+  const bookings = readFileSync(new URL("./server/bookings.ts", import.meta.url), "utf8");
+  const rides = readFileSync(new URL("./server/cityRides.ts", import.meta.url), "utf8");
+  const cron = readFileSync(new URL("../../../../supabase/migrations/20261021100100_mobile_cron.sql", import.meta.url), "utf8");
+  const proposed = readFileSync(new URL("../../../../ROVEYA_PHASE3_STAGING/notice_triggers_noop.sql", import.meta.url), "utf8");
+  const functions = proposed.replace(/--[^\n]*/g, "");
+  assert.match(bookings, /export async function recoverQueuedNotices/);
+  assert.match(rides, /recoverQueuedNotices\(\)/);
+  assert.doesNotMatch(cron, /communication_events/);
+  assert.match(functions, /function public\.offers_push/);
+  assert.match(functions, /function public\.trips_push/);
+  assert.equal(functions.match(/return new;/g)?.length, 2);
+  assert.doesNotMatch(functions, /push_send/);
+  assert.doesNotMatch(functions, /insert/);
+  const crashed = row({ status: "queued", updatedAt: 1_000 });
+  assert.equal(nextAction(crashed, 1_000 + STALE_MS), "claim");
+  assert.equal(run(crashed, 1_000 + STALE_MS, false, "ok", false, "offer_created").sends, 1);
+  assert.equal(stillRelevant("offer_created", "offers", 10_000, { offerStatus: "rejected", offerExpiresAt: 11_000, captainOnline: true, rideStatus: "searching" }), false);
+  assert.equal(stillRelevant("offer_created", "offers", 10_000, { offerStatus: "offered", offerExpiresAt: 11_000, captainOnline: true, rideStatus: "assigned" }), false);
+  assert.equal(nextAction(row({ status: "unknown", lastError: PROVIDER_NOTE, updatedAt: 1_000 }), 1_000 + STALE_MS), "stop");
 });
 
 test("recovery skips expired offers, offline captains, and finished rides", () => {
