@@ -17,7 +17,7 @@ services:
     rootDir: Phase-1 code base/ADMIN_NETWORK
     buildCommand: npm ci && npm run build
     startCommand: npm start
-    healthCheckPath: /api/v1/health
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION
         value: "22"

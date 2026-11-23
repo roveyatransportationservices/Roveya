@@ -14,7 +14,7 @@ export async function loadReviews(): Promise<Testimonial[]> {
   try {
     const base = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
     if (!base) throw new Error();
-    const response = await fetch(`${base}/api/v1/reviews`, { next: { revalidate: 300 } });
+    const response = await fetch(`${base}/api/v1/reviews`, { next: { revalidate: 300 }, signal: AbortSignal.timeout(5_000) });
     if (!response.ok) throw new Error();
     const data = (await response.json()) as { reviews: ServerReview[] };
     live = data.reviews.map((review, at) => ({
