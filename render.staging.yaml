@@ -11,7 +11,7 @@ services:
     runtime: node
     repo: https://github.com/roveyatransportationservices/Roveya
     branch: release/roveya-staging-clean-v1
-    plan: 0.5c-512mb
+    plan: free
     region: singapore
     autoDeployTrigger: off
     rootDir: Phase-1 code base/ADMIN_NETWORK
@@ -61,7 +61,7 @@ services:
     runtime: node
     repo: https://github.com/roveyatransportationservices/Roveya
     branch: release/roveya-staging-clean-v1
-    plan: 0.5c-512mb
+    plan: free
     region: singapore
     autoDeployTrigger: off
     rootDir: Phase-1 code base/RoveyaOfficialWebsite
