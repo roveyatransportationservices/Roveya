@@ -1,0 +1,132 @@
+# Staging Blueprint. This file is not render.yaml and does not change production services.
+# Create a new Blueprint in the Render Dashboard. Set the branch to
+# release/roveya-staging-clean-v1 and the Blueprint path to render.staging.yaml.
+# Do not point the existing production Blueprint at this file.
+# autoDeployTrigger: off stops later pushes from deploying. The first sync still
+# creates services, so that click needs founder approval.
+
+services:
+  - type: web
+    name: roveya-staging-admin
+    runtime: node
+    repo: https://github.com/roveyatransportationservices/Roveya
+    branch: release/roveya-staging-clean-v1
+    plan: 0.5c-512mb
+    region: singapore
+    autoDeployTrigger: off
+    rootDir: Phase-1 code base/ADMIN_NETWORK
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: ROVEYA_TRUSTED_PROXY_HOPS
+        value: "1"
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        value: https://pqnfipleuztivnrsyvkd.supabase.co
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: SMS_PROVIDER
+        value: 2factor
+      - key: SMS_API_KEY
+        sync: false
+      - key: SMS_SENDER_ID
+        sync: false
+      - key: SMS_TEMPLATE_ID
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      - key: NEXT_PUBLIC_WEBSITE_URL
+        fromService:
+          name: roveya-staging-website
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: NEXT_PUBLIC_PLATFORM_URL
+        fromService:
+          name: roveya-staging-website
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+
+  - type: web
+    name: roveya-staging-website
+    runtime: node
+    repo: https://github.com/roveyatransportationservices/Roveya
+    branch: release/roveya-staging-clean-v1
+    plan: 0.5c-512mb
+    region: singapore
+    autoDeployTrigger: off
+    rootDir: Phase-1 code base/RoveyaOfficialWebsite
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          name: roveya-staging-admin
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: NEXT_PUBLIC_SITE_URL
+        fromService:
+          name: roveya-staging-website
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+
+  - type: web
+    name: roveya-staging-customer
+    runtime: static
+    repo: https://github.com/roveyatransportationservices/Roveya
+    branch: release/roveya-staging-clean-v1
+    autoDeployTrigger: off
+    rootDir: Phase-1 code base
+    buildCommand: cd "Phase-2 implementation/Roveya-Bike,Auto/customer" && npm ci && npx expo export --platform web && rm -rf ../../../staging-customer-web && mkdir -p ../../../staging-customer-web && cp -r dist/. ../../../staging-customer-web/
+    staticPublishPath: staging-customer-web
+    envVars:
+      - key: EXPO_PUBLIC_API_URL
+        fromService:
+          name: roveya-staging-admin
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: EXPO_PUBLIC_ADMIN_URL
+        fromService:
+          name: roveya-staging-admin
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: EXPO_PUBLIC_SUPABASE_URL
+        value: https://pqnfipleuztivnrsyvkd.supabase.co
+      - key: EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+        sync: false
+
+  - type: web
+    name: roveya-staging-captain
+    runtime: static
+    repo: https://github.com/roveyatransportationservices/Roveya
+    branch: release/roveya-staging-clean-v1
+    autoDeployTrigger: off
+    rootDir: Phase-1 code base
+    buildCommand: cd "Phase-2 implementation/Roveya-Bike,Auto/rider" && npm ci && npx expo export --platform web && rm -rf ../../../staging-captain-web && mkdir -p ../../../staging-captain-web && cp -r dist/. ../../../staging-captain-web/
+    staticPublishPath: staging-captain-web
+    envVars:
+      - key: EXPO_PUBLIC_API_URL
+        fromService:
+          name: roveya-staging-admin
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: EXPO_PUBLIC_ADMIN_URL
+        fromService:
+          name: roveya-staging-admin
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: EXPO_PUBLIC_SUPABASE_URL
+        value: https://pqnfipleuztivnrsyvkd.supabase.co
+      - key: EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+        sync: false
