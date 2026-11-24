@@ -12,6 +12,7 @@ import { observe } from "./observe";
 import { assignmentWinner, bookingPhase, canTransition, clampSettings, eligibleCaptains, nearPickup, offRoute, parseRadii, searchExpired, searchRadiusKm, type DispatchSettings } from "./dispatch";
 import { dayFeeFromRpc } from "../dayFee";
 import { DEFAULT_RIDE_PLAN, normalizeRidePlan, rideBill, type RidePlan } from "../ridePlan";
+import { locationFixBelievable } from "./locationFix";
 import { captainDocuments, saveRating } from "./phoneDesk";
 import { beginGatewayAttempt } from "./razorpay";
 import { kickConsumers } from "./rides";
@@ -179,16 +180,6 @@ const kmBetween = (a: { lat: number; lng: number }, b: { lat: number; lng: numbe
 };
 
 const FRESH_MS = 120_000;
-
-const believableFix = (previous: { latitude: number; longitude: number; updatedAt?: string | null } | null, spot: { latitude: number; longitude: number }) => {
-  if (!Number.isFinite(spot.latitude) || !Number.isFinite(spot.longitude)) return false;
-  if (spot.latitude < 6.5 || spot.latitude > 37.6 || spot.longitude < 68 || spot.longitude > 97.5) return false;
-  if (!previous || previous.latitude == null || previous.longitude == null) return true;
-  const km = kmBetween({ lat: previous.latitude, lng: previous.longitude }, { lat: spot.latitude, lng: spot.longitude });
-  const seconds = Math.max(1, (Date.now() - Date.parse(String(previous.updatedAt ?? ""))) / 1000);
-  if (!Number.isFinite(seconds)) return km <= 2;
-  return km / (seconds / 3600) <= 140;
-};
 
 const cleanEmail = (value: string) => {
   const email = value.trim().toLowerCase();
@@ -731,14 +722,21 @@ export async function rideForPassenger(riderId: string, tripId: string) {
   const secretRow = await db().from("trip_secrets").select("otp").eq("trip_id", tripId).maybeSingle();
   const offered = trip.status === "searching" ? await db().from("trip_offers").select("id").eq("trip_id", tripId).eq("status", "offered").gt("expires_at", new Date().toISOString()).limit(1) : { data: [] };
   let captain: Row | null = null;
-  let location: { latitude: number; longitude: number; heading: number } | null = null;
+  let location: { latitude: number; longitude: number; heading: number; updatedAt: string | null } | null = null;
   if (trip.captain_id) {
     const [{ data: person }, { data: spot }] = await Promise.all([
       db().from("captains").select("name,rating,vehicle_no,vehicle_model").eq("user_id", trip.captain_id).maybeSingle(),
-      db().from("captain_presence").select("latitude,longitude,heading").eq("captain_id", trip.captain_id).maybeSingle(),
+      db().from("captain_presence").select("latitude,longitude,heading,updated_at").eq("captain_id", trip.captain_id).maybeSingle(),
     ]);
     captain = person as Row | null;
-    if (spot?.latitude != null) location = { latitude: Number(spot.latitude), longitude: Number(spot.longitude), heading: Number(spot.heading ?? 0) };
+    if (spot?.latitude != null) {
+      location = {
+        latitude: Number(spot.latitude),
+        longitude: Number(spot.longitude),
+        heading: Number(spot.heading ?? 0),
+        updatedAt: spot.updated_at ? String(spot.updated_at) : null,
+      };
+    }
   }
   const here = location ? { lat: location.latitude, lng: location.longitude } : null;
   const pickup = { lat: Number(trip.pickup_lat), lng: Number(trip.pickup_lng) };
@@ -860,7 +858,7 @@ export async function setDuty(captainId: string, online: boolean, spot?: { latit
   const { data: presence } = await db().from("captain_presence").select("online").eq("captain_id", captainId).maybeSingle();
   const dayCharge = online && !presence?.online ? await chargeActiveDay(captainId, String(captain.vehicle)) : null;
   const now = new Date().toISOString();
-  const spotOk = spot?.latitude != null && spot.longitude != null && believableFix(null, { latitude: spot.latitude, longitude: spot.longitude });
+  const spotOk = spot?.latitude != null && spot.longitude != null && locationFixBelievable(null, { latitude: spot.latitude, longitude: spot.longitude });
   const row = {
     captain_id: captainId,
     online,
@@ -880,7 +878,7 @@ export async function setDuty(captainId: string, online: boolean, spot?: { latit
 export async function moveCaptain(captainId: string, spot: { latitude: number; longitude: number; heading?: number }) {
   const { data } = await db().from("captain_presence").select("latitude,longitude,updated_at").eq("captain_id", captainId).maybeSingle();
   const previous = data?.latitude == null ? null : { latitude: Number(data.latitude), longitude: Number(data.longitude), updatedAt: data.updated_at ? String(data.updated_at) : null };
-  if (!believableFix(previous, spot)) return { ok: true, ignored: true };
+  if (!locationFixBelievable(previous, spot)) return { ok: true, ignored: true };
   const moved = data?.latitude == null || kmBetween({ lat: Number(data.latitude), lng: Number(data.longitude) }, { lat: spot.latitude, lng: spot.longitude }) >= 0.03;
   const stale = !data?.updated_at || Date.now() - Date.parse(String(data.updated_at)) >= 15_000;
   if (!moved && !stale) return { ok: true };

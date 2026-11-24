@@ -6,20 +6,24 @@ import { api, watch } from "../backend";
 import { useStore } from "../store";
 import { colors, type } from "../theme";
 import type { CustomerStack } from "../navigation";
-import type { ActiveTrip, TripStatus } from "../types";
+import { nextTripStatus, preferFresherLocation } from "../clientSync";
+import type { ActiveTrip } from "../types";
 import { FindingRide } from "./FindingRide";
 import { LiveTrip } from "./LiveTrip";
-
-const order: TripStatus[] = ["searching", "assigned", "arrived", "onTrip", "payment", "rating", "done"];
 
 type ServerRide = {
   status: string;
   otp: string | null;
   cancelledBy: string | null;
-  captain: { name: string; rating: number; trips: number; vehicleNo: string; vehicleName: string; location: { latitude: number; longitude: number; heading: number } | null } | null;
+  captain: {
+    name: string;
+    rating: number;
+    trips: number;
+    vehicleNo: string;
+    vehicleName: string;
+    location: { latitude: number; longitude: number; heading: number; updatedAt?: string | null } | null;
+  } | null;
 };
-
-const statusFrom: Record<string, TripStatus> = { searching: "searching", assigned: "assigned", arrived: "arrived", on_trip: "onTrip", completed: "payment" };
 
 export function TripScreen({ navigation }: NativeStackScreenProps<CustomerStack, "Trip">) {
   const store = useStore();
@@ -48,13 +52,22 @@ export function TripScreen({ navigation }: NativeStackScreenProps<CustomerStack,
         store.patchTrip({ status: "searching", progress: 0 });
         return;
       }
-      const next = statusFrom[ride.status];
+      const next = nextTripStatus(current.status, ride.status);
       const patch: Partial<ActiveTrip> = {};
-      if (next && order.indexOf(next) > order.indexOf(current.status)) patch.status = next;
+      if (next) patch.status = next;
       if (ride.otp) patch.otp = ride.otp;
       if (ride.captain) {
         patch.captain = { ...current.captain, photo: undefined, name: ride.captain.name, rating: ride.captain.rating, trips: ride.captain.trips, vehicleNo: ride.captain.vehicleNo, vehicleName: ride.captain.vehicleName };
-        if (ride.captain.location) patch.captainAt = { latitude: ride.captain.location.latitude, longitude: ride.captain.location.longitude, heading: ride.captain.location.heading ?? 0 };
+        if (ride.captain.location) {
+          const incoming = {
+            latitude: ride.captain.location.latitude,
+            longitude: ride.captain.location.longitude,
+            heading: ride.captain.location.heading ?? 0,
+            updatedAt: ride.captain.location.updatedAt ?? null,
+          };
+          const kept = preferFresherLocation(current.captainAt ?? null, incoming);
+          if (kept) patch.captainAt = kept;
+        }
       }
       store.patchTrip(patch);
     };
