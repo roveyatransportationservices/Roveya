@@ -24,11 +24,18 @@ test("direct UPI is not the same as gateway online payment", () => {
   assert.match(paymentMethodLabel("online"), /through ROVEYA/i);
 });
 
-test("current settle_trip SQL still credits wallet for every non-cash payment including direct UPI", () => {
+test("legacy migration settle_trip credits wallet for every non-cash payment including direct UPI", () => {
   const sql = readFileSync(join(root, "../../supabase/migrations/20261021100000_mobile_platform.sql"), "utf8");
   assert.match(sql, /if v\.payment = 'cash'/);
   assert.match(sql, /ride_earning/);
-  assert.doesNotMatch(sql, /payment in \('cash', 'upi'\)/);
+  assert.doesNotMatch(sql, /payment = 'cash' or v\.payment = 'upi'/);
+});
+
+test("proposed settle_trip treats cash and direct UPI as captain-collected without ride_earning", () => {
+  const sql = readFileSync(join(root, "../../supabase/proposed/20261124200000_settle_trip_direct_upi.sql"), "utf8");
+  assert.match(sql, /v\.payment = 'cash' or v\.payment = 'upi'/);
+  assert.match(sql, /elsif v\.payment = 'online'/);
+  assert.match(sql, /ride_earning/);
 });
 
 test("city booking UI and API reject new Online Bike and Auto bookings", () => {
