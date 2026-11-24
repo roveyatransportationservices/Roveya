@@ -3,15 +3,16 @@
 **Date:** 2026-11-24  
 **Worktree:** `C:\Users\Dell\Desktop\roveya-staging-clean-v1`  
 **Branch:** `release/roveya-staging-clean-v1`  
-**Deployed Git commit:** `4b8c52d88b4ccd6e2548c3ed6572cb7ea1d83e5e`  
-**Upstream:** `origin/release/roveya-staging-clean-v1` @ `4b8c52d`  
+**Phase 4.7 app commit (Admin+Captain):** `4b8c52d88b4ccd6e2548c3ed6572cb7ea1d83e5e`  
+**Latest Admin evidence commit:** `918c610206af04edc32aa2130c96d1330ba34dd9`  
+**Upstream:** `origin/release/roveya-staging-clean-v1` @ `918c610`  
 **Expenditure:** ₹0  
 
 ## Verdict
 
 **STAGING SQL GATE PASSED — STAGING ADMIN + CAPTAIN DEPLOYED**
 
-Founder installed Desktop STEP2 and ran STEP3 on staging Supabase `pqnfipleuztivnrsyvkd`. Repository migrations were synced to that STEP2 body, Admin/Captain builds passed, commit pushed, and both staging Render services were deployed at the exact commit above. Customer was **not** redeployed (no Phase 4.7 Customer-required change).
+Founder installed Desktop STEP2 and ran STEP3 on staging Supabase `pqnfipleuztivnrsyvkd`. Repository migrations were synced to that STEP2 body, Admin/Captain builds passed, commit pushed, and both staging Render services were deployed. Admin was then redeployed at `918c610` for closure evidence + webhook secret admission harden. Customer was **not** redeployed (no Phase 4.7 Customer-required change).
 
 Phase 4.7 does **not** claim live ride E2E on staging (no fabricated rides / captain accounts).
 
@@ -65,7 +66,8 @@ Admin `cityRides.ts` already calls installed RPCs: `charge_active_day`, `go_onli
 
 | Service | Render ID | Deploy ID | Commit | Status |
 |---------|-----------|-----------|--------|--------|
-| Admin | `srv-dc26c9e1egvs73di6ts0` | `dep-dc2ridl9fdbs738hif20` | `4b8c52d88b4ccd6e2548c3ed6572cb7ea1d83e5e` | `live` |
+| Admin (P4.7 SQL + gated top-up) | `srv-dc26c9e1egvs73di6ts0` | `dep-dc2ridl9fdbs738hif20` | `4b8c52d88b4ccd6e2548c3ed6572cb7ea1d83e5e` | `live` (superseded) |
+| Admin (evidence + webhook harden) | `srv-dc26c9e1egvs73di6ts0` | `dep-dc2rm8etlv9c738vllg0` | `918c610206af04edc32aa2130c96d1330ba34dd9` | `live` (current) |
 | Captain | `srv-dc26ca61egvs73di6v7g` | `dep-dc2rk0142hec73900fr0` | `4b8c52d88b4ccd6e2548c3ed6572cb7ea1d83e5e` | `live` |
 | Customer | — | — | — | **skipped** (not required) |
 
@@ -75,6 +77,7 @@ Admin `cityRides.ts` already calls installed RPCs: `charge_active_day`, `go_onli
 |-------|--------|
 | `GET https://roveya-staging-admin.onrender.com/api/health` | `200 {"ok":true}` |
 | `GET https://roveya-staging-admin.onrender.com/api/v1/health` | `200 {"ok":true}` |
+| `POST /api/v1/wallet/topup` (unauthenticated) | `401` (auth required; recharge still gated) |
 | Admin logs | Deploy available; periodic `sweep` events healthy (no crash loop) |
 | `GET https://roveya-staging-captain.onrender.com/` | `200` (static site available) |
 

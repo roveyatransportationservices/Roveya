@@ -3,14 +3,15 @@
 **Date:** 2026-11-24  
 **Worktree:** `C:\Users\Dell\Desktop\roveya-staging-clean-v1`  
 **Branch:** `release/roveya-staging-clean-v1`  
-**Git at Phase 4.7 deploy:** `4b8c52d88b4ccd6e2548c3ed6572cb7ea1d83e5e`  
+**Git (Admin current):** `918c610206af04edc32aa2130c96d1330ba34dd9`  
+**Git (Captain live):** `4b8c52d88b4ccd6e2548c3ed6572cb7ea1d83e5e`  
 **Expenditure:** ₹0  
 
 ## Verdict
 
 **LOCAL + STAGING CODE PATH READY — BLOCKED ON FOUNDER CREDENTIALS / POLICY**
 
-Phase 4.7 staging Admin + Captain are live. Phase 4.8 wallet recharge remains fail-closed. Razorpay test-mode E2E, staging top-up SQL install, and enabling `wallet_topup_enabled` require founder action. No real-money flows.
+Phase 4.7 staging Admin + Captain are live. Phase 4.8 wallet recharge remains fail-closed. Razorpay test-mode E2E, staging top-up SQL install, and enabling `wallet_topup_enabled` require founder action. No real-money flows. **Stopped here pending founder test credentials and wallet policy.**
 
 ## Completed (local)
 
@@ -29,9 +30,10 @@ Phase 4.7 staging Admin + Captain are live. Phase 4.8 wallet recharge remains fa
 | Item | Evidence |
 |------|----------|
 | Day-fee SQL STEP2/STEP3 | Founder verified; settle md5 `bc2d6d25…` |
-| Admin deploy | `dep-dc2ridl9fdbs738hif20` @ `4b8c52d` live |
+| Admin deploy (current) | `dep-dc2rm8etlv9c738vllg0` @ `918c610` live |
 | Captain deploy | `dep-dc2rk0142hec73900fr0` @ `4b8c52d` live |
 | Health | `/api/health` and `/api/v1/health` → `200 {"ok":true}` |
+| Wallet top-up unauthenticated | `401` |
 
 ## Deferred / blocked (founder)
 
