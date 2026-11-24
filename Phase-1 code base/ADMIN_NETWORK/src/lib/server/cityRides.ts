@@ -5,6 +5,7 @@ import { notify, recoverQueuedNotices, pricePair, priceRide, type CityVehicle, t
 import { noticeCopy } from "../delivery";
 import { cityReceipt } from "../receipt";
 import { rememberReceipt } from "./deliveryStore";
+import { dispatchCityReceiptEmail } from "./receiptDispatch";
 import type { Row } from "./data";
 import { db } from "./db";
 import { loadtestBlocks } from "../loadtestGuard";
@@ -1033,9 +1034,15 @@ export async function captainTripAction(captainId: string, tripId: string, actio
     if (done.data?.length) {
       const completed = noticeCopy("ride_completed", String(data.code ?? ""));
       void notify(String(data.rider_id), "rider", completed.title, completed.body, { tripId, kind: "ride_completed", eventId: `city:${tripId}:completed` });
+      const [{ data: rider }, { data: captainRow }] = await Promise.all([
+        db().from("riders").select("name").eq("user_id", data.rider_id).maybeSingle(),
+        data.captain_id ? db().from("captains").select("name").eq("user_id", data.captain_id).maybeSingle() : Promise.resolve({ data: null }),
+      ]);
       const receipt = cityReceipt({
         tripId,
         code: String(data.code ?? tripId),
+        passenger: rider?.name ? String(rider.name) : null,
+        captain: captainRow?.name ? String(captainRow.name) : null,
         vehicle: String(data.vehicle ?? ""),
         pickup: String(data.pickup_name ?? ""),
         drop: String(data.drop_name ?? ""),
@@ -1044,7 +1051,7 @@ export async function captainTripAction(captainId: string, tripId: string, actio
         paymentStatus: String(data.payment_status ?? ""),
         completedAt: now,
       });
-      void rememberReceipt(receipt);
+      void rememberReceipt(receipt).then((stored) => dispatchCityReceiptEmail({ riderId: String(data.rider_id), receipt: stored }));
       const ready = noticeCopy("receipt_ready", receipt.receiptNo);
       void notify(String(data.rider_id), "rider", ready.title, ready.body, { tripId, kind: "receipt_ready", eventId: `city:${tripId}:receipt` });
     }

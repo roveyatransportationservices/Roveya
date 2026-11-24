@@ -1,6 +1,7 @@
 // Amounts come from stored rows. This draft is not a tax invoice.
 
 import { loadtestBlocks } from "./loadtestGuard";
+import { paymentMethodLabel } from "./settlementPolicy";
 
 export type ReceiptSource = "city" | "carpool";
 
@@ -62,7 +63,7 @@ export function cityReceipt(input: {
     vehicle: input.vehicle || "",
     route: [input.pickup, input.drop].filter(Boolean).join(" to "),
     lines: fare ? [fare] : [],
-    paymentMethod: input.payment || "",
+    paymentMethod: paymentMethodLabel(input.payment),
     paymentStatus: input.paymentStatus || "",
     completedAt: input.completedAt,
     note,
@@ -115,8 +116,29 @@ export function escapeHtml(value: string) {
 }
 
 export function receiptHtml(receipt: ServiceReceipt) {
-  const rows = receipt.lines.map((item) => `<tr><td>${escapeHtml(item.label)}</td><td>₹${(item.paise / 100).toFixed(2)}</td></tr>`).join("");
-  return `<!doctype html><html><body><p>${escapeHtml(receipt.note)}</p><p>Receipt ${escapeHtml(receipt.receiptNo)} · ${escapeHtml(receipt.bookingRef)}</p><p>${escapeHtml(receipt.passenger)} · ${escapeHtml(receipt.route)}</p><table>${rows}</table><p>${escapeHtml(receipt.paymentMethod)} · ${escapeHtml(receipt.paymentStatus)}</p></body></html>`;
+  const rows = receipt.lines.map((item) => `<tr><td style="padding:6px 0;color:#f6f1dc;">${escapeHtml(item.label)}</td><td style="padding:6px 0;text-align:right;color:#f6f1dc;">₹${(item.paise / 100).toFixed(2)}</td></tr>`).join("");
+  const total = receipt.lines.reduce((sum, item) => sum + item.paise, 0);
+  return `<!doctype html><html><body style="margin:0;background:#12060d;font-family:Georgia,serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#12060d;padding:32px 16px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" style="max-width:480px;background:#1c0c12;border:1px solid rgba(214,160,0,0.35);border-radius:24px;padding:32px 24px;">
+        <tr><td style="color:#d6a000;font-size:28px;letter-spacing:0.08em;">ROVEYA</td></tr>
+        <tr><td style="color:#f6f1dc;font-size:18px;padding-top:12px;">Trip receipt</td></tr>
+        <tr><td style="color:rgba(246,241,220,0.65);font-size:13px;padding-top:8px;font-family:Arial,sans-serif;">${escapeHtml(receipt.note)}</td></tr>
+        <tr><td style="color:#f6f1dc;font-size:14px;padding-top:20px;font-family:Arial,sans-serif;">Receipt ${escapeHtml(receipt.receiptNo)} · Ride ${escapeHtml(receipt.bookingRef)}</td></tr>
+        <tr><td style="color:#f6f1dc;font-size:14px;padding-top:8px;font-family:Arial,sans-serif;">${escapeHtml(receipt.completedAt)}</td></tr>
+        <tr><td style="color:#f6f1dc;font-size:14px;padding-top:16px;font-family:Arial,sans-serif;">Passenger: ${escapeHtml(receipt.passenger)}</td></tr>
+        <tr><td style="color:#f6f1dc;font-size:14px;padding-top:4px;font-family:Arial,sans-serif;">Captain: ${escapeHtml(receipt.captain)}</td></tr>
+        <tr><td style="color:#f6f1dc;font-size:14px;padding-top:4px;font-family:Arial,sans-serif;">Vehicle: ${escapeHtml(receipt.vehicle || "—")}</td></tr>
+        <tr><td style="color:#f6f1dc;font-size:14px;padding-top:4px;font-family:Arial,sans-serif;">Route: ${escapeHtml(receipt.route || "—")}</td></tr>
+        <tr><td style="padding-top:20px;"><table role="presentation" width="100%">${rows}
+          <tr><td style="padding-top:12px;border-top:1px solid rgba(214,160,0,0.35);color:#d6a000;font-family:Arial,sans-serif;">Total</td><td style="padding-top:12px;border-top:1px solid rgba(214,160,0,0.35);text-align:right;color:#d6a000;font-family:Arial,sans-serif;">₹${(total / 100).toFixed(2)}</td></tr>
+        </table></td></tr>
+        <tr><td style="color:rgba(246,241,220,0.75);font-size:13px;padding-top:20px;font-family:Arial,sans-serif;">${escapeHtml(receipt.paymentMethod)}</td></tr>
+        <tr><td style="color:rgba(246,241,220,0.55);font-size:12px;padding-top:4px;font-family:Arial,sans-serif;">Payment status on record: ${escapeHtml(receipt.paymentStatus || "—")}</td></tr>
+      </table>
+    </td></tr>
+  </table></body></html>`;
 }
 
 export function receiptEmailDecision(input: { configured: boolean; approved: boolean; alreadySent: boolean }) {
