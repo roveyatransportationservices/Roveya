@@ -55,7 +55,10 @@ export function WalletScreen({ navigation }: Props) {
           <Ionicons name="arrow-up-circle" size={18} color={colors.night} />
           <Text style={styles.redeemText}>{canRedeem ? "Redeem to bank" : `Redeem from ${inr(MIN_REDEEM)}`}</Text>
         </Pressable>
-        <Text style={[page.small, { marginTop: 10 }]}>Wallet recharge is not available in this build yet. Bike day fee ₹10 · Auto day fee ₹12.</Text>
+        <Text style={[page.small, { marginTop: 10 }]}>
+          Bike day fee ₹10 · Auto day fee ₹12. Your daily platform fee renews automatically at 12:00 AM IST while you remain online and available. If your wallet balance is insufficient, you can finish your existing ride, but new ride requests will be paused.
+        </Text>
+        <Text style={[page.small, { marginTop: 8 }]}>Wallet recharge is not available in this build yet.</Text>
         <View style={styles.heroStats}>
           <View style={{ flex: 1 }}>
             <Text style={styles.heroStat}>{inr(cashToday)}</Text>

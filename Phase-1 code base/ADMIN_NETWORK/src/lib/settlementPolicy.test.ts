@@ -64,6 +64,10 @@ test("proposed charge_active_day uses Asia/Kolkata and prepaid non-negative ledg
   assert.match(goOnline, /go_online_with_day_fee/);
   assert.match(goOnline, /insufficient_wallet_balance/);
   assert.match(goOnline, /Asia\/Kolkata/);
+  const renew = readFileSync(join(root, "../../supabase/proposed/20261124210000_renew_online_day_fee.sql"), "utf8");
+  assert.match(renew, /renew_online_day_fee/);
+  assert.match(renew, /stale_presence/);
+  assert.match(renew, /activeRidePreserved/);
 });
 
 test("receipt email stays skipped when already sent and held without approval", () => {
