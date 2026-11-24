@@ -3,7 +3,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 // Maps a stored payment row to the only result the API is allowed to show.
 // A seat payment is successful only when the intent is paid and the booking is confirmed.
 
-export type GatewayPurpose = "seat_booking" | "ride_fare" | "trip" | string;
+export type GatewayPurpose = "seat_booking" | "ride_fare" | "trip" | "wallet_topup" | string;
 
 export function confirmationOutcome(input: { purpose: GatewayPurpose; intentStatus: string; bookingStatus?: string | null }) {
   if (input.intentStatus === "paid") {

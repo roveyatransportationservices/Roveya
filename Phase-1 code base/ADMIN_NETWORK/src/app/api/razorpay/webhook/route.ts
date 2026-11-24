@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/server/db";
 import { gatewayReplay, webhookAdmission } from "@/lib/server/paymentState";
+import { assertWebhookSecretPresent } from "@/lib/server/razorpayEnv";
 import { applyRazorpayEvent, recordSeatSettlement, resumeCapturedSeat, resumeReconcileRefund, type RazorpayEvent } from "@/lib/server/razorpay";
 
 function readJson(data: unknown) {
@@ -15,7 +16,12 @@ function readJson(data: unknown) {
 }
 
 export async function POST(req: Request) {
-  const secret = process.env.RAZORPAY_WEBHOOK_SECRET?.trim() ?? "";
+  let secret = "";
+  try {
+    secret = assertWebhookSecretPresent();
+  } catch {
+    return NextResponse.json({ error: "Webhook secret is not set." }, { status: 503 });
+  }
   const raw = await req.text();
   const signature = req.headers.get("x-razorpay-signature") ?? "";
   let eventId = "";
