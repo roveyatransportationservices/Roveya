@@ -51,7 +51,7 @@ const create = z.object({
   phone: z.string().regex(/^[6-9]\d{9}$/, "Enter the passenger's 10-digit mobile number."),
   pickup: place,
   drop: place,
-  payment: z.enum(["cash", "upi", "online"]),
+  payment: z.enum(["cash", "upi"], { errorMap: () => ({ message: "Choose cash or UPI paid to the captain." }) }),
   requestKey: z.string().regex(/^[A-Za-z0-9_.:-]{8,80}$/, "The booking key is not valid.").optional(),
 });
 

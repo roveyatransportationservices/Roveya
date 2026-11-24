@@ -61,6 +61,7 @@ begin
     )::text,
     now()
   );
+  -- Prepaid model: never allow a negative wallet from the daily fee.
   perform public.ledger_post(
     p_captain,
     'adjustment',
@@ -68,7 +69,7 @@ begin
     'admin_adjustment',
     v_key,
     'Active day fee · ' || p_vehicle || ' · ' || v_day,
-    true
+    false
   );
   return jsonb_build_object('transactionId', v_key, 'day', v_day, 'amountPaise', v_paise, 'status', 'charged');
 end;

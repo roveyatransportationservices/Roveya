@@ -96,7 +96,7 @@ export function PeopleList({ role, service }: { role: RoleSlug; service: Service
                   <Stat label="Spent" value={rs(t.spentPaise)} tone="text-gold" />
                   <Stat label="Paid online" value={rs(t.onlinePaise)} />
                   {carpool ? <Stat label="Refunded" value={rs(t.refundPaise)} sub="on cancelled seats" tone="text-amber" /> : <Stat label="Not paid yet" value={rs(t.duePaise)} sub="finished rides still due" tone={t.duePaise ? "text-danger" : "text-cream"} />}
-                  <Stat label="ROVEYA Cash added" value={rs(t.topupPaise)} />
+                  <Stat label="Wallet funding (not earned revenue)" value={rs(t.topupPaise)} />
                   <Stat label="Failed payments" value={num(t.failedPayments)} tone={t.failedPayments ? "text-danger" : "text-cream"} />
                 </>
               )}

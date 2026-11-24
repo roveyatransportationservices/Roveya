@@ -16,6 +16,7 @@ import { DEFAULT_RIDE_PLAN, normalizeRidePlan, rideBill, type RidePlan } from ".
 import { locationFixBelievable } from "./locationFix";
 import { captainDocuments, saveRating } from "./phoneDesk";
 import { beginGatewayAttempt } from "./razorpay";
+import { bookingPaymentAllowed } from "./rideStartSecurity";
 import { kickConsumers } from "./rides";
 import { leaseExpired, leaseOwned, leaseStamp, SWEEP_LEASE_KEY } from "./sweepLease";
 
@@ -644,7 +645,7 @@ async function bookRideOnce(riderId: string, vehicle: CityVehicle, quoteId: stri
   const held = openQuote(quoteId);
   if (held.riderId !== riderId) throw new ApiError("This fare has expired. Check the price and book again.", 409);
   const price = vehicle === "bike" ? held.bike : held.auto;
-  if (payment !== "cash" && payment !== "upi" && payment !== "online") throw new ApiError("Choose cash, UPI, or online payment.", 400);
+  if (!bookingPaymentAllowed(payment)) throw new ApiError("Choose cash or UPI paid to the captain.", 400);
   const fingerprint = createHash("sha256").update(JSON.stringify({
     riderId,
     vehicle,
@@ -853,28 +854,116 @@ export async function startRidePayment(riderId: string, tripId: string, origin: 
   return { status: "payment_required", payment: { intentId: opened.intentId, checkoutUrl: `${origin}/pay/${opened.intentId}` } };
 }
 
+function istBusinessDay(at = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(at);
+}
+
+function dayFeePaise(vehicle: string) {
+  return vehicle === "auto" ? 1200 : vehicle === "bike" ? 1000 : 0;
+}
+
+function insufficientDutyError(balancePaise: number, feePaise: number, day: string) {
+  const need = Math.max(0, feePaise - Math.max(0, balancePaise));
+  throw new ApiError("Insufficient wallet balance. Recharge your wallet to go online.", 402, undefined, {
+    code: "insufficient_wallet_balance",
+    balancePaise,
+    feePaise,
+    requiredPaise: need,
+    feePaidToday: false,
+    day,
+    rechargeAvailable: false,
+  });
+}
+
 export async function setDuty(captainId: string, online: boolean, spot?: { latitude?: number; longitude?: number; heading?: number; autoAccept?: boolean }) {
   const { data: captain } = await db().from("captains").select("vehicle,status").eq("user_id", captainId).maybeSingle();
   if (!captain) throw new ApiError("Finish registration before going on duty.", 409);
   if (captain.status !== "active") throw new ApiError("The desk is still checking this account.", 409);
-  const { data: presence } = await db().from("captain_presence").select("online").eq("captain_id", captainId).maybeSingle();
-  const dayCharge = online && !presence?.online ? await chargeActiveDay(captainId, String(captain.vehicle)) : null;
+  const vehicle = String(captain.vehicle);
+
+  if (!online) {
+    const now = new Date().toISOString();
+    const { error } = await db().from("captain_presence").upsert(
+      { captain_id: captainId, online: false, vehicle, latitude: null, longitude: null, heading: 0, auto_accept: Boolean(spot?.autoAccept), updated_at: now },
+      { onConflict: "captain_id" },
+    );
+    if (error) throw new ApiError("Duty could not be updated.", 400);
+    return { ok: true, dayCharge: null, feePaidToday: undefined as boolean | undefined };
+  }
+
+  const lat = spot?.latitude;
+  const lng = spot?.longitude;
+  const spotOk = lat != null && lng != null && locationFixBelievable(null, { latitude: lat, longitude: lng });
+  if (!spotOk) throw new ApiError("Turn on location to go on duty.", 400);
+
+  // Preferred path: one DB transaction for fee + presence (requires go_online_with_day_fee migration).
+  const atomic = await db().rpc("go_online_with_day_fee", {
+    p_captain: captainId,
+    p_lat: lat,
+    p_lng: lng,
+    p_heading: spot?.heading ?? 0,
+    p_auto_accept: Boolean(spot?.autoAccept),
+  });
+  const missing = Boolean(atomic.error && /could not find|schema cache|PGRST202|42883|does not exist/i.test(atomic.error.message));
+  if (!missing) {
+    if (atomic.error) {
+      const msg = atomic.error.message || "";
+      const match = /insufficient_wallet_balance:(\d+):(\d+):(\d{4}-\d{2}-\d{2})/.exec(msg);
+      if (match) insufficientDutyError(Number(match[1]), Number(match[2]), match[3]);
+      if (/captain_not_active/i.test(msg)) throw new ApiError("The desk is still checking this account.", 409);
+      if (/location_required/i.test(msg)) throw new ApiError("Turn on location to go on duty.", 400);
+      if (/vehicle_not_supported/i.test(msg)) throw new ApiError("This vehicle cannot go on duty yet.", 400);
+      throw new ApiError("Duty could not be updated.", 400);
+    }
+    const row = atomic.data as { dayCharge?: { amountPaise?: number; day?: string; transactionId?: string } | null; feePaidToday?: boolean; balancePaise?: number; feePaise?: number } | null;
+    const charged = row?.dayCharge?.amountPaise != null ? dayFeeFromRpc({ transactionId: row.dayCharge.transactionId, day: row.dayCharge.day, amountPaise: row.dayCharge.amountPaise }) : null;
+    return {
+      ok: true,
+      dayCharge: charged,
+      feePaidToday: Boolean(row?.feePaidToday),
+      balancePaise: row?.balancePaise,
+      feePaise: row?.feePaise ?? dayFeePaise(vehicle),
+      rechargeAvailable: false,
+    };
+  }
+
+  // Interim prepaid guard until go_online_with_day_fee is installed. Still not fully atomic.
+  const day = istBusinessDay();
+  const feeKey = `active_day_${captainId}_${day}`;
+  const feeNeeded = dayFeePaise(vehicle);
+  const [{ data: marker }, { data: wallet }] = await Promise.all([
+    db().from("platform_settings").select("value").eq("key", feeKey).maybeSingle(),
+    db().from("wallets").select("balance_paise").eq("owner_id", captainId).maybeSingle(),
+  ]);
+  const paidToday = Boolean(marker?.value);
+  const balancePaise = Number(wallet?.balance_paise ?? 0);
+  if (!paidToday && feeNeeded > 0 && balancePaise < feeNeeded) insufficientDutyError(balancePaise, feeNeeded, day);
+
+  const dayCharge = !paidToday ? await chargeActiveDay(captainId, vehicle) : null;
   const now = new Date().toISOString();
-  const spotOk = spot?.latitude != null && spot.longitude != null && locationFixBelievable(null, { latitude: spot.latitude, longitude: spot.longitude });
-  const row = {
-    captain_id: captainId,
-    online,
-    vehicle: captain.vehicle,
-    latitude: spotOk ? spot?.latitude ?? null : null,
-    longitude: spotOk ? spot?.longitude ?? null : null,
-    heading: spot?.heading ?? 0,
-    auto_accept: Boolean(spot?.autoAccept),
-    updated_at: now,
-    ...(online ? { online_since: now } : {}),
-  };
-  const { error } = await db().from("captain_presence").upsert(row, { onConflict: "captain_id" });
+  const { error } = await db().from("captain_presence").upsert(
+    {
+      captain_id: captainId,
+      online: true,
+      vehicle,
+      latitude: lat,
+      longitude: lng,
+      heading: spot?.heading ?? 0,
+      auto_accept: Boolean(spot?.autoAccept),
+      updated_at: now,
+      online_since: now,
+    },
+    { onConflict: "captain_id" },
+  );
   if (error) throw new ApiError("Duty could not be updated.", 400);
-  return { ok: true, dayCharge };
+  return {
+    ok: true,
+    dayCharge,
+    feePaidToday: true,
+    balancePaise,
+    feePaise: feeNeeded,
+    rechargeAvailable: false,
+  };
 }
 
 export async function moveCaptain(captainId: string, spot: { latitude: number; longitude: number; heading?: number }) {

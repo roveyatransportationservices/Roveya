@@ -31,11 +31,14 @@ test("current settle_trip SQL still credits wallet for every non-cash payment in
   assert.doesNotMatch(sql, /payment in \('cash', 'upi'\)/);
 });
 
-test("city booking UI and API still accept online for Bike and Auto", () => {
+test("city booking UI and API reject new Online Bike and Auto bookings", () => {
   const options = readFileSync(join(root, "../Phase-2 implementation/Roveya-Bike,Auto/customer/src/screens/OptionsScreen.tsx"), "utf8");
   const security = readFileSync(join(root, "src/lib/server/rideStartSecurity.ts"), "utf8");
-  assert.match(options, /setPayment\("online"\)/);
-  assert.match(security, /payment === "online"/);
+  const desk = readFileSync(join(root, "src/app/api/rides/route.ts"), "utf8");
+  assert.doesNotMatch(options, /setPayment\("online"\)/);
+  assert.match(security, /payment === "cash" \|\| payment === "upi"/);
+  assert.doesNotMatch(security, /payment === "online"/);
+  assert.match(desk, /z\.enum\(\["cash", "upi"/);
 });
 
 test("daily fee decision stays once per India day with bike 10 and auto 12", () => {
@@ -45,11 +48,15 @@ test("daily fee decision stays once per India day with bike 10 and auto 12", () 
   assert.equal(dayFeeDecision({ vehicle: "cab", mode: "subscription", bikeDayRupees: 10, autoDayRupees: 12, day: "2026-11-24" }).action, "skip");
 });
 
-test("proposed charge_active_day uses Asia/Kolkata and allow_negative ledger debit", () => {
+test("proposed charge_active_day uses Asia/Kolkata and prepaid non-negative ledger debit", () => {
   const sql = readFileSync(join(root, "../../supabase/proposed/20261121240000_charge_active_day.sql"), "utf8");
   assert.match(sql, /Asia\/Kolkata/);
   assert.match(sql, /Active day fee/);
-  assert.match(sql, /true\s*\)/);
+  assert.match(sql, /false\s*\)\s*;/);
+  const goOnline = readFileSync(join(root, "../../supabase/proposed/20261124180000_prepaid_go_online.sql"), "utf8");
+  assert.match(goOnline, /go_online_with_day_fee/);
+  assert.match(goOnline, /insufficient_wallet_balance/);
+  assert.match(goOnline, /Asia\/Kolkata/);
 });
 
 test("receipt email stays skipped when already sent and held without approval", () => {

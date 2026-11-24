@@ -1,7 +1,7 @@
 // Amounts come from stored rows. This draft is not a tax invoice.
 
 import { loadtestBlocks } from "./loadtestGuard";
-import { paymentMethodLabel } from "./settlementPolicy";
+import { paymentMethodLabel, paymentStatusLabel } from "./settlementPolicy";
 
 export type ReceiptSource = "city" | "carpool";
 
@@ -64,7 +64,7 @@ export function cityReceipt(input: {
     route: [input.pickup, input.drop].filter(Boolean).join(" to "),
     lines: fare ? [fare] : [],
     paymentMethod: paymentMethodLabel(input.payment),
-    paymentStatus: input.paymentStatus || "",
+    paymentStatus: paymentStatusLabel(input.payment, input.paymentStatus),
     completedAt: input.completedAt,
     note,
   };

@@ -19,9 +19,15 @@ type Tokens = { accessToken: string; refreshToken: string; expiresAt: number };
 
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  balancePaise?: number;
+  feePaise?: number;
+  requiredPaise?: number;
+  feePaidToday?: boolean;
+  rechargeAvailable?: boolean;
+  constructor(message: string, status: number, extra?: Partial<ApiError>) {
     super(message);
     this.status = status;
+    if (extra) Object.assign(this, extra);
   }
 }
 
@@ -111,8 +117,23 @@ export async function api<T>(path: string, options: { method?: "GET" | "POST" | 
     response = await send().catch(() => null);
   }
   if (!response) throw new ApiError("No connection. Check your internet and try again.", 0);
-  const data = (await response.json().catch(() => ({}))) as T & { error?: string };
-  if (!response.ok) throw new ApiError(data.error ?? "Something went wrong. Please try again.", response.status);
+  const data = (await response.json().catch(() => ({}))) as T & {
+    error?: string;
+    balancePaise?: number;
+    feePaise?: number;
+    requiredPaise?: number;
+    feePaidToday?: boolean;
+    rechargeAvailable?: boolean;
+  };
+  if (!response.ok) {
+    throw new ApiError(data.error ?? "Something went wrong. Please try again.", response.status, {
+      balancePaise: data.balancePaise,
+      feePaise: data.feePaise,
+      requiredPaise: data.requiredPaise,
+      feePaidToday: data.feePaidToday,
+      rechargeAvailable: data.rechargeAvailable,
+    });
+  }
   return data;
 }
 

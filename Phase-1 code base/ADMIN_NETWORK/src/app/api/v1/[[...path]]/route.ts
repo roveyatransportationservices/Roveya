@@ -386,7 +386,13 @@ async function run(req: Request, ctx: { params: Promise<{ path?: string[] }> }) 
     const { path = [] } = await ctx.params;
     return await handle(req, path);
   } catch (error) {
-    if (error instanceof ApiError) return json({ error: error.message }, error.status || 400, error.retryAfter ? { "Retry-After": String(error.retryAfter) } : undefined);
+    if (error instanceof ApiError) {
+      return json(
+        error.details ? { error: error.message, ...error.details } : { error: error.message },
+        error.status || 400,
+        error.retryAfter ? { "Retry-After": String(error.retryAfter) } : undefined,
+      );
+    }
     return json({ error: "Something went wrong. Please try again." }, 500);
   }
 }

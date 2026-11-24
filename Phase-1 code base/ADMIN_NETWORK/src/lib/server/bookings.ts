@@ -99,6 +99,7 @@ export async function riderByPhone(phone: string) {
 // A city ride booked by the desk for a passenger. Offers go out to the nearest free captain.
 export async function createCityRide(input: { vehicle: CityVehicle; phone: string; pickup: Place; drop: Place; payment: "cash" | "upi" | "online"; requestKey?: string }) {
   if (input.vehicle === "cab") throw new ApiError("ROVEYA Taxi is coming soon. Book a bike or an auto.", 400);
+  if (input.payment !== "cash" && input.payment !== "upi") throw new ApiError("Choose cash or UPI paid to the captain.", 400);
   const requestKey = input.requestKey?.trim() ?? "";
   if (requestKey && !/^[A-Za-z0-9_.:-]{8,80}$/.test(requestKey)) throw new ApiError("The booking key is not valid. Use 8 to 80 letters, numbers, or . _ : -", 400);
   const rider = await riderByPhone(input.phone);

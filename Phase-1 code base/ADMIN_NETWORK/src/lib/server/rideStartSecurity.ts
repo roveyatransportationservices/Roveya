@@ -27,7 +27,8 @@ export function bookingVehicleAllowed(vehicle: string) {
 }
 
 export function bookingPaymentAllowed(payment: string) {
-  return payment === "cash" || payment === "upi" || payment === "online";
+  // Ordinary Bike/Auto: cash or direct UPI only. Carpool keeps separate Razorpay paths.
+  return payment === "cash" || payment === "upi";
 }
 
 export function bookingKeyReuse(input: { priorFingerprint: string | null; nextFingerprint: string }) {

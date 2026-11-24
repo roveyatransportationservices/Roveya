@@ -32,6 +32,7 @@ test("city booking refuses cab and unknown payment, and replays the same booking
   assert.equal(bookingVehicleAllowed("cab"), false);
   assert.equal(bookingPaymentAllowed("cash"), true);
   assert.equal(bookingPaymentAllowed("upi"), true);
+  assert.equal(bookingPaymentAllowed("online"), false);
   assert.equal(bookingPaymentAllowed("wallet"), false);
   assert.equal(bookingKeyReuse({ priorFingerprint: null, nextFingerprint: "a" }), "new");
   assert.equal(bookingKeyReuse({ priorFingerprint: "a", nextFingerprint: "a" }), "replay");

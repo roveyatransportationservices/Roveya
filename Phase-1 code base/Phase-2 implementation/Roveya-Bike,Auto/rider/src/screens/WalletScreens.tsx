@@ -50,15 +50,16 @@ export function WalletScreen({ navigation }: Props) {
           <Ionicons name="wallet" size={22} color={colors.gold} />
         </View>
         <Text style={styles.balance}>{inr(store.wallet)}</Text>
-        <Text style={page.lead}>Online fares, tips, and incentives collect here.</Text>
+        <Text style={page.lead}>Prepaid balance for the daily platform fee. Cash and direct UPI ride fares stay with you and are not added here.</Text>
         <Pressable disabled={!canRedeem} onPress={() => navigation.navigate("Redeem")} style={({ pressed }) => [styles.redeem, !canRedeem && { opacity: 0.45 }, pressed && { opacity: 0.9 }]}>
           <Ionicons name="arrow-up-circle" size={18} color={colors.night} />
           <Text style={styles.redeemText}>{canRedeem ? "Redeem to bank" : `Redeem from ${inr(MIN_REDEEM)}`}</Text>
         </Pressable>
+        <Text style={[page.small, { marginTop: 10 }]}>Wallet recharge is not available in this build yet. Bike day fee ₹10 · Auto day fee ₹12.</Text>
         <View style={styles.heroStats}>
           <View style={{ flex: 1 }}>
             <Text style={styles.heroStat}>{inr(cashToday)}</Text>
-            <Text style={page.small}>Cash in hand today</Text>
+            <Text style={page.small}>Cash / UPI rides today (with you)</Text>
           </View>
           <View style={styles.heroLine} />
           <View style={{ flex: 1, paddingLeft: 14 }}>

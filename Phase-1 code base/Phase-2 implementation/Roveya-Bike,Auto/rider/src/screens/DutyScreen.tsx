@@ -220,11 +220,25 @@ export function DutyScreen({ navigation }: Props) {
     if (live) {
       try {
         const spot = await locate();
-        const duty = await api<{ dayCharge?: { amount: number } | null }>("/captain/duty", { body: { online: true, ...spot, autoAccept: store.autoAccept } });
+        const duty = await api<{ dayCharge?: { amount: number } | null; balancePaise?: number; feePaise?: number; requiredPaise?: number; feePaidToday?: boolean; rechargeAvailable?: boolean }>("/captain/duty", {
+          body: { online: true, ...spot, autoAccept: store.autoAccept },
+        });
         setMe(spot);
         if (duty.dayCharge) store.payForToday();
       } catch (error) {
-        setToast(error instanceof Error ? error.message : "We could not put you on duty. Try again.");
+        const err = error as Error & { balancePaise?: number; feePaise?: number; requiredPaise?: number; rechargeAvailable?: boolean };
+        const message = err instanceof Error ? err.message : "We could not put you on duty. Try again.";
+        if (/Insufficient wallet balance/i.test(message)) {
+          const balance = typeof err.balancePaise === "number" ? inr(err.balancePaise / 100) : null;
+          const fee = typeof err.feePaise === "number" ? inr(err.feePaise / 100) : null;
+          const need = typeof err.requiredPaise === "number" ? inr(err.requiredPaise / 100) : null;
+          const detail = [balance ? `Balance ${balance}` : null, fee ? `Today's fee ${fee}` : null, need ? `Need ${need} more` : null, "Wallet recharge is not available in this build yet."]
+            .filter(Boolean)
+            .join(". ");
+          setToast(`${message} ${detail}`);
+        } else {
+          setToast(message);
+        }
         return;
       }
       if (await backgroundConsent()) mode = await startDutyTracking().catch(() => "foreground" as const);

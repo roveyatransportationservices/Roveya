@@ -72,7 +72,7 @@ export function EarningsScreen({ navigation }: TabProps) {
         slides={[
           slide(art.earn, "EVERY RIDE COUNTS", "Fares, tips, and bonuses in one clear view"),
           slide(art.ride, "DAY PLAN", "The day fee is used on your first completed trip", "See plan", () => navigation.navigate("Incentives")),
-          slide(art.auto, "PAYOUTS", "Online fares land in your wallet after every ride", "Open wallet", () => navigation.navigate("Wallet")),
+          slide(art.auto, "WALLET", "Prepaid day fees come from your wallet. Cash and UPI fares stay with you", "Open wallet", () => navigation.navigate("Wallet")),
         ]}
       />
       <Chips items={[{ key: "today", label: "Today" }, { key: "week", label: "This week" }]} value={range} onChange={setRange} />

@@ -281,10 +281,6 @@ export function OptionsScreen({ route, navigation }: NativeStackScreenProps<Cust
             <Ionicons name="phone-portrait" size={16} color={payment === "upi" ? colors.night : colors.gold} />
             <Text style={[styles.choiceText, payment === "upi" && styles.choiceTextOn]}>UPI</Text>
           </Pressable>
-          <Pressable onPress={() => setPayment("online")} style={[styles.choice, payment === "online" && styles.choiceOn]}>
-            <Ionicons name="card" size={16} color={payment === "online" ? colors.night : colors.gold} />
-            <Text style={[styles.choiceText, payment === "online" && styles.choiceTextOn]}>Online</Text>
-          </Pressable>
         </View>
         {priced ? <Text style={styles.note}>{bill.passengerFee ? `Booking fee ${inr(bill.passengerFee)} is included in ${inr(bill.passengerPays)}` : "You pay this fare. No extra fee."}</Text> : null}
         <Pressable disabled={booking || !priced} onPress={() => void book()} style={({ pressed }) => [styles.book, (pressed || booking || !priced) && { opacity: 0.85 }]}>
