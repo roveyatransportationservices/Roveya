@@ -293,7 +293,16 @@ async function handle(req: Request, path: string[]) {
     const body = await bodyOf(req);
     return json(await requestPayout((await openSession(auth, "captain")).sub, Number(body.amount)));
   }
-  if (req.method === "POST" && key === "wallet/topup") return json({ error: "Adding money opens when the payment service is connected. Cash rides do not need it." }, 402);
+  if (req.method === "POST" && key === "wallet/topup") {
+    const { beginCaptainWalletTopup } = await import("@/lib/server/walletTopup");
+    const body = await bodyOf(req);
+    return json(await beginCaptainWalletTopup((await openSession(auth, "captain")).sub, body.amountPaise ?? body.amount));
+  }
+  if (req.method === "GET" && key === "wallet/topup/policy") {
+    const { readTopupPolicyNote } = await import("@/lib/server/walletTopup");
+    await openSession(auth, "captain");
+    return json(await readTopupPolicyNote());
+  }
 
   if (req.method === "GET" && key === "seats/search") {
     await allow("seats", address, 60, 60, "Too many seat searches. Wait a minute and try again.");

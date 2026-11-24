@@ -3,6 +3,7 @@ import { loadtestBlocks } from "../loadtestGuard";
 import { ApiError } from "./api";
 import { db } from "./db";
 import { confirmationMessage, confirmationOutcome, orderFailureKind } from "./paymentState";
+import { assertRazorpayCredentialsForRuntime } from "./razorpayEnv";
 import { gatewayRefundDecision, refundEventDecision } from "./refundDecision";
 
 type OrderPlacer = (amountPaise: number, receipt: string) => Promise<{ keyId: string; orderId: string }>;
@@ -19,9 +20,7 @@ function readJson(data: unknown) {
 }
 
 function keys() {
-  const id = process.env.RAZORPAY_KEY_ID?.trim();
-  const secret = process.env.RAZORPAY_KEY_SECRET?.trim();
-  if (!id || !secret) throw new ApiError("Online payment is not switched on yet.", 503);
+  const { id, secret } = assertRazorpayCredentialsForRuntime();
   return { id, secret };
 }
 
@@ -61,12 +60,18 @@ export function setOrderPlacerForTests(placer: OrderPlacer | null) {
 
 // Reserves one attempt in the database, then asks Razorpay only if this caller won that attempt.
 // The amount sent to Razorpay is the amount the database returned, never a figure from the phone.
-export async function beginGatewayAttempt(input: { ownerId: string; purpose: "seat_booking" | "ride_fare"; refId: string; receipt: string }) {
+export async function beginGatewayAttempt(input: {
+  ownerId: string;
+  purpose: "seat_booking" | "ride_fare" | "wallet_topup";
+  refId: string;
+  receipt: string;
+  amountPaise?: number;
+}) {
   const reserved = await db().rpc("reserve_payment_attempt", {
     p_owner: input.ownerId,
     p_purpose: input.purpose,
     p_ref: input.refId,
-    p_amount: 0,
+    p_amount: input.purpose === "wallet_topup" ? Math.trunc(Number(input.amountPaise ?? 0)) : 0,
   });
   if (reserved.error) throw new ApiError("Online payment could not be started. Try again.", 503);
   const row = readJson(reserved.data);

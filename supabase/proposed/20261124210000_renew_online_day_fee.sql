@@ -3,6 +3,8 @@
 -- Lock order:
 --   1) captains  2) wallets  3) captain_presence  4) advisory(day key)  5) marker + ledger / presence updates
 -- Offline Captains are never charged and are never eligible for new rides.
+-- Successful payment = status=charged only. Uncertain markers fail closed (no eligibility).
+-- IST day captured with clock_timestamp() AFTER locks.
 -- No monthly-plan exemption. Founder amounts: Bike 1000 / Auto 1200 paise.
 -- Rollback: drop function public.renew_online_day_fee(uuid, integer); do not delete ledger/markers.
 
@@ -26,7 +28,7 @@ declare
   v_online boolean;
   v_updated timestamptz;
   v_already boolean := false;
-  v_now timestamptz := now();
+  v_now timestamptz;
   v_stale_seconds integer := greatest(coalesce(p_stale_seconds, 180), 30);
   v_active_ride boolean := false;
   v_went_offline boolean := false;
@@ -58,13 +60,31 @@ begin
   where captain_id = p_captain
   for update;
 
+  -- Wall-clock AFTER locks.
+  v_now := clock_timestamp();
   v_day := to_char(v_now at time zone 'Asia/Kolkata', 'YYYY-MM-DD');
   v_key := 'active_day_' || p_captain::text || '_' || v_day;
   perform pg_advisory_xact_lock(hashtextextended(v_key, 0));
 
   select value into v_existing from public.platform_settings where key = v_key;
   if v_existing is not null then
-    v_already := true;
+    if public.active_day_marker_is_charged(v_existing) then
+      v_already := true;
+    else
+      select balance_paise into v_balance from public.wallets where owner_id = p_captain;
+      return jsonb_build_object(
+        'ok', false,
+        'day', v_day,
+        'alreadyPaid', false,
+        'charged', false,
+        'amountPaise', 0,
+        'balancePaise', coalesce(v_balance, 0),
+        'feePaise', case when v_vehicle = 'bike' then 1000 else 1200 end,
+        'eligibleForNewRides', false,
+        'wentOffline', false,
+        'reason', 'active_day_marker_invalid'
+      );
+    end if;
   end if;
 
   if not coalesce(v_online, false) then

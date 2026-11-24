@@ -2,7 +2,8 @@
 -- Atomic prepaid daily fee + captain go-online for Bike/Auto.
 -- Lock order:
 --   1) captains  2) wallets  3) captain_presence  4) advisory(day key)  5) marker + ledger  6) presence upsert
--- Compatible with accept_city_offer (captains → presence → trips → offers).
+-- Compatible with accept_city_offer (captains -> presence -> trips -> offers).
+-- IST day uses clock_timestamp() AFTER locks. Successful payment = status=charged only.
 -- No monthly-plan exemption. Founder amounts: Bike 1000 / Auto 1200 paise.
 -- Rollback: drop function public.go_online_with_day_fee(...); keep charge_active_day; do not delete ledger/markers.
 -- Application must remain fail-closed if this RPC is missing (no non-atomic fallback).
@@ -28,7 +29,7 @@ declare
   v_paise bigint := 0;
   v_balance bigint;
   v_already boolean := false;
-  v_now timestamptz := now();
+  v_now timestamptz;
 begin
   select status, vehicle into v_status, v_vehicle
   from public.captains
@@ -57,13 +58,19 @@ begin
 
   perform 1 from public.captain_presence where captain_id = p_captain for update;
 
+  -- Wall-clock AFTER locks so a pre-midnight txn cannot stamp yesterday after waiting.
+  v_now := clock_timestamp();
   v_day := to_char(v_now at time zone 'Asia/Kolkata', 'YYYY-MM-DD');
   v_key := 'active_day_' || p_captain::text || '_' || v_day;
   perform pg_advisory_xact_lock(hashtextextended(v_key, 0));
 
   select value into v_existing from public.platform_settings where key = v_key;
   if v_existing is not null then
-    v_already := true;
+    if public.active_day_marker_is_charged(v_existing) then
+      v_already := true;
+    else
+      raise exception 'active_day_marker_invalid:%', v_key using errcode = 'P0001';
+    end if;
   else
     v_paise := case when v_vehicle = 'bike' then 1000 else 1200 end;
   end if;
