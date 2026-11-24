@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { Linking, Platform, Pressable, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -10,6 +10,7 @@ import { art, slide } from "../banners";
 import { Chips, Empty, Group, ListRow, PageShell, Pill, SectionTitle, Toggle, page } from "../components/PageShell";
 import { FlowCta, type FlowIcon } from "../components/StepShell";
 import { DESK_LABEL, DESK_PHONE, MIN_REDEEM } from "../data";
+import { confirmLogout } from "../sessionEpoch";
 import { useStore } from "../store";
 import { colors, type } from "../theme";
 import type { CaptainStack } from "../navigation";
@@ -277,6 +278,18 @@ export function ReferScreen({ navigation }: NativeStackScreenProps<CaptainStack,
 export function SettingsScreen({ navigation }: NativeStackScreenProps<CaptainStack, "Settings">) {
   const store = useStore();
   const [confirmOut, setConfirmOut] = useState(false);
+  const armed = useRef(false);
+  useEffect(() => {
+    if (!confirmOut) {
+      armed.current = false;
+      return;
+    }
+    const timer = setTimeout(() => {
+      armed.current = false;
+      setConfirmOut(false);
+    }, 3500);
+    return () => clearTimeout(timer);
+  }, [confirmOut]);
   return (
     <PageShell kicker="SETTINGS" title="App settings" onBack={() => navigation.goBack()}>
       <SectionTitle first>RIDE REQUESTS</SectionTitle>
@@ -307,7 +320,7 @@ export function SettingsScreen({ navigation }: NativeStackScreenProps<CaptainSta
           sub={store.captain ? `+91 ${store.captain.phone} · ${store.captain.captainId}` : undefined}
           last
           chevron={false}
-          onPress={() => (confirmOut ? store.signOut() : setConfirmOut(true))}
+          onPress={() => confirmLogout(armed, setConfirmOut, () => store.signOut())}
         />
       </Group>
     </PageShell>

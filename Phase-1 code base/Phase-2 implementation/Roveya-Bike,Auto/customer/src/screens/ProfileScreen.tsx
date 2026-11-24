@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -10,6 +10,7 @@ import { api } from "../backend";
 import { DESK_PHONE } from "../components/StepShell";
 import { inr } from "../geo";
 import { REDEEM_COINS, REDEEM_VALUE } from "../lounge";
+import { confirmLogout } from "../sessionEpoch";
 import { useStore } from "../store";
 import { colors, type } from "../theme";
 import type { CustomerStack, CustomerTabs } from "../navigation";
@@ -30,6 +31,7 @@ export function ProfileScreen({ navigation }: Props) {
   const store = useStore();
   const insets = useSafeAreaInsets();
   const [confirmOut, setConfirmOut] = useState(false);
+  const armed = useRef(false);
   const name = store.session?.name?.trim() || "ROVEYA rider";
   const phone = store.session?.phone ?? "";
   const completed = store.rides.filter((ride) => ride.status === "Completed").length;
@@ -37,8 +39,14 @@ export function ProfileScreen({ navigation }: Props) {
   const coinValue = Math.floor(store.coins / REDEEM_COINS) * REDEEM_VALUE;
 
   useEffect(() => {
-    if (!confirmOut) return;
-    const timer = setTimeout(() => setConfirmOut(false), 3500);
+    if (!confirmOut) {
+      armed.current = false;
+      return;
+    }
+    const timer = setTimeout(() => {
+      armed.current = false;
+      setConfirmOut(false);
+    }, 3500);
     return () => clearTimeout(timer);
   }, [confirmOut]);
 
@@ -223,7 +231,7 @@ export function ProfileScreen({ navigation }: Props) {
         </Pressable>
 
         <Pressable
-          onPress={() => (confirmOut ? store.signOut() : setConfirmOut(true))}
+          onPress={() => confirmLogout(armed, setConfirmOut, () => store.signOut())}
           style={({ pressed }) => [styles.logout, confirmOut && styles.logoutConfirm, pressed && { opacity: 0.9 }]}
         >
           <Ionicons name="log-out-outline" size={18} color={confirmOut ? colors.cream : colors.muted} />

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -17,6 +17,7 @@ import { FlowCta } from "../components/StepShell";
 import { TabPage } from "../components/TabPage";
 import { DESK_LABEL, DESK_PHONE, vehicleTitle } from "../data";
 import { inr } from "../geo";
+import { confirmLogout } from "../sessionEpoch";
 import { useStore } from "../store";
 import { colors, type } from "../theme";
 import type { CaptainStack, CaptainTabs } from "../navigation";
@@ -41,14 +42,21 @@ export function ProfileScreen({ navigation }: Props) {
   const store = useStore();
   const captain = store.captain!;
   const [confirmOut, setConfirmOut] = useState(false);
+  const armed = useRef(false);
   const rating = average(store.feedback);
   const orders = store.trips.filter((trip) => trip.status === "Completed").length;
   const joined = new Date(captain.joinedAt);
   const pending = Object.values(captain.docs).filter((status) => status !== "verified").length;
 
   useEffect(() => {
-    if (!confirmOut) return;
-    const timer = setTimeout(() => setConfirmOut(false), 3500);
+    if (!confirmOut) {
+      armed.current = false;
+      return;
+    }
+    const timer = setTimeout(() => {
+      armed.current = false;
+      setConfirmOut(false);
+    }, 3500);
     return () => clearTimeout(timer);
   }, [confirmOut]);
 
@@ -208,7 +216,7 @@ export function ProfileScreen({ navigation }: Props) {
         <Ionicons name="trash-outline" size={18} color={colors.muted} />
         <Text style={styles.logoutText}>Close account</Text>
       </Pressable>
-      <Pressable onPress={() => (confirmOut ? store.signOut() : setConfirmOut(true))} style={({ pressed }) => [styles.logout, confirmOut && styles.logoutConfirm, pressed && { opacity: 0.9 }]}>
+      <Pressable onPress={() => confirmLogout(armed, setConfirmOut, () => store.signOut())} style={({ pressed }) => [styles.logout, confirmOut && styles.logoutConfirm, pressed && { opacity: 0.9 }]}>
         <Ionicons name="log-out-outline" size={18} color={confirmOut ? colors.cream : colors.muted} />
         <Text style={[styles.logoutText, confirmOut && { color: colors.cream }]}>{confirmOut ? "Tap again to log out" : store.online ? "Log out · ends your duty" : "Log out"}</Text>
       </Pressable>

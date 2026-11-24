@@ -194,6 +194,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const owner = useRef<string | null>(null);
+  const sessionLife = useRef(0);
   const vault = useRef<Record<string, Account>>({});
 
   const snapshot = (): Account => ({ rides, wallet, walletLog, coins, cards, poolBookings, parcels, home, work, contacts, claims, prefs, recentDrops, recentPickups, triviaDay, bests });
@@ -287,15 +288,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, [trip, rideReady]);
 
   useEffect(() => {
+    const stamp = sessionLife.current;
     void loadSession();
     AsyncStorage.multiGet([key, knownKey])
       .then(([[, raw], [, rawKnown]]) => {
+        if (sessionLife.current !== stamp) return;
         if (raw) owner.current = (JSON.parse(raw) as Session).phone;
         if (raw) setSession(JSON.parse(raw) as Session);
         if (rawKnown) setKnown(JSON.parse(rawKnown) as Session);
         else if (raw) setKnown(JSON.parse(raw) as Session);
       })
-      .finally(() => setReady(true));
+      .finally(() => {
+        if (sessionLife.current === stamp) setReady(true);
+      });
   }, []);
 
   useEffect(() => {
@@ -377,13 +382,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         return better;
       },
       signIn: (next) => {
+        const stamp = sessionLife.current;
         switchTo(next.phone);
         setSession(next);
         setKnown(next);
-        void AsyncStorage.multiSet([[key, JSON.stringify(next)], [knownKey, JSON.stringify(next)]]);
+        void AsyncStorage.multiSet([[key, JSON.stringify(next)], [knownKey, JSON.stringify(next)]]).then(() => {
+          if (sessionLife.current !== stamp) void AsyncStorage.removeItem(key);
+        });
       },
       signOut: () => {
-        void forgetPush().finally(() => signOutRemote());
+        sessionLife.current += 1;
+        void signOutRemote();
+        void forgetPush();
         setSession(null);
         setTrip(null);
         void AsyncStorage.removeItem(key);
@@ -400,10 +410,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       walletLog,
       updateProfile: (patch) => {
         if (!session) return;
+        const stamp = sessionLife.current;
         const next = { ...session, ...patch };
         setSession(next);
         setKnown(next);
-        void AsyncStorage.multiSet([[key, JSON.stringify(next)], [knownKey, JSON.stringify(next)]]);
+        void AsyncStorage.multiSet([[key, JSON.stringify(next)], [knownKey, JSON.stringify(next)]]).then(() => {
+          if (sessionLife.current !== stamp) void AsyncStorage.removeItem(key);
+        });
       },
       prefs,
       setPref: (name, on) => setPrefs((all) => ({ ...all, [name]: on })),

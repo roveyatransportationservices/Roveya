@@ -156,17 +156,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     else void AsyncStorage.removeItem(jobKey);
   }, [job, jobReady]);
 
+  const sessionLife = useRef(0);
   useEffect(() => {
+    const stamp = sessionLife.current;
     void loadSession();
     AsyncStorage.getItem(key)
       .then((raw) => {
-        if (!raw) return;
+        if (sessionLife.current !== stamp || !raw) return;
         const saved = JSON.parse(raw) as { captain: Captain; signedIn: boolean; dayBook?: DayBook };
         setCaptain(saved.captain);
         setSignedIn(saved.signedIn);
         if (saved.dayBook) setDayBook(settleDayBook(saved.dayBook));
       })
-      .finally(() => setReady(true));
+      .finally(() => {
+        if (sessionLife.current === stamp) setReady(true);
+      });
   }, []);
 
   useEffect(() => {
@@ -181,8 +185,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const bookRef = useRef(dayBook);
   bookRef.current = dayBook;
   const persist = (next: Captain | null, inside: boolean) => {
-    if (next) void AsyncStorage.setItem(key, JSON.stringify({ captain: next, signedIn: inside, dayBook: bookRef.current }));
-    else void AsyncStorage.removeItem(key);
+    const stamp = sessionLife.current;
+    const signed = inside && sessionLife.current === stamp;
+    const writing = next ? AsyncStorage.setItem(key, JSON.stringify({ captain: next, signedIn: signed, dayBook: bookRef.current })) : AsyncStorage.removeItem(key);
+    void Promise.resolve(writing).then(() => {
+      if (sessionLife.current === stamp) return;
+      void AsyncStorage.getItem(key).then((raw) => {
+        if (!raw) return;
+        try {
+          const saved = JSON.parse(raw) as { signedIn?: boolean };
+          if (saved.signedIn) void AsyncStorage.setItem(key, JSON.stringify({ ...saved, signedIn: false }));
+        } catch {
+          /* The saved profile is unreadable, so it is left untouched. */
+        }
+      });
+    });
   };
   const planVehicle = captain?.vehicle === "auto" || captain?.vehicle === "bike" ? captain.vehicle : null;
   useEffect(() => {
@@ -378,9 +395,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       },
       setPref: (name, value) => setPrefs((all) => ({ ...all, [name]: value })),
       signOut: () => {
+        sessionLife.current += 1;
         if (live && onlineSince) void request("/captain/duty", { body: { online: false } }).catch(() => undefined);
         void stopDutyTracking();
-        void forgetPush().finally(() => signOutRemote());
+        void signOutRemote();
+        void forgetPush();
         setOnlineState(false);
         setOnlineSince(null);
         setOffer(null);
