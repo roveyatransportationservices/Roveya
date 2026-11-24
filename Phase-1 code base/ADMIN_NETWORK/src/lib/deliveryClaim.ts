@@ -80,9 +80,11 @@ export type SubjectSnapshot = {
   offerStatus?: string | null;
   offerExpiresAt?: number | null;
   captainOnline?: boolean | null;
+  captainId?: string | null;
+  assignmentVersion?: number | null;
 };
 
-export function stillRelevant(kind: string, channel: string, now: number, subject: SubjectSnapshot | null) {
+export function stillRelevant(kind: string, channel: string, now: number, subject: SubjectSnapshot | null, eventKey?: string | null) {
   if (!subject) return false;
   // The expiry notice is the record that this offer ended. It stays sendable after the offer leaves "offered".
   // A new-offer notice does not. A rejected, withdrawn, accepted, cancelled, or completed ride is not an expiry.
@@ -90,12 +92,12 @@ export function stillRelevant(kind: string, channel: string, now: number, subjec
     if (subject.rideStatus === "cancelled" || subject.rideStatus === "completed") return false;
     return subject.offerStatus === "expired";
   }
+  if (kind === "captain_assigned") return assignmentStillCurrent(eventKey, subject);
   if (SEND_EVEN_IF_CANCELLED.has(kind)) return true;
   if (kind === "offer_created" || channel === "offers") {
     if (subject.rideStatus && subject.rideStatus !== "searching") return false;
     return subject.offerStatus === "offered" && (subject.offerExpiresAt ?? 0) > now && subject.captainOnline !== false;
   }
-  if (kind === "captain_assigned") return ["assigned", "arrived", "on_trip"].includes(subject.rideStatus ?? "");
   if (kind === "captain_arrived") return ["arrived", "on_trip"].includes(subject.rideStatus ?? "");
   if (kind === "ride_started") return subject.rideStatus === "on_trip";
   if (kind === "ride_completed" || kind === "receipt_ready") return subject.rideStatus === "completed" || subject.bookingStatus === "completed";
@@ -116,4 +118,71 @@ export function offerNoticeKey(offerId: string, notice: "created" | "expired") {
   const id = offerId.trim();
   if (!id) return null;
   return `captain:offer:${id}:${notice}`;
+}
+
+// One key for one recipient and one change. The database trigger writes the same strings.
+export function searchExpiredKey(tripId: string) {
+  return `city:${tripId}:no-captain`;
+}
+
+function assignmentKey(tripId: string, kind: string, captainId: string, version: number) {
+  return `city:${tripId}:${kind}:${captainId}:v${version}`;
+}
+
+export function captainAssignedKey(tripId: string, captainId: string, version: number) {
+  return assignmentKey(tripId, "assigned", captainId, version);
+}
+
+export function captainChangedKey(tripId: string, captainId: string, version: number) {
+  return assignmentKey(tripId, "captain-changed", captainId, version);
+}
+
+export function deskAssignKey(tripId: string, captainId: string, version: number) {
+  return assignmentKey(tripId, "desk-assign", captainId, version);
+}
+
+export function deskReleasedKey(tripId: string, captainId: string, version: number) {
+  return assignmentKey(tripId, "desk-released", captainId, version);
+}
+
+export function captainReleasedKey(tripId: string, captainId: string, version: number) {
+  return assignmentKey(tripId, "captain-released", captainId, version);
+}
+
+export function riderCancelledKey(tripId: string, captainId: string) {
+  return `city:${tripId}:rider-cancelled:${captainId}`;
+}
+
+export function deskCancelledRiderKey(tripId: string) {
+  return `city:${tripId}:desk-cancelled`;
+}
+
+export function deskCancelledCaptainKey(tripId: string, captainId: string) {
+  return `city:${tripId}:desk-cancelled:${captainId}`;
+}
+
+export function assignedCaptainId(eventKey: string | null | undefined) {
+  const match = /^city:[^:]+:(?:assigned|captain-changed|desk-assign):([^:]+):v\d+$/.exec(eventKey?.trim() ?? "");
+  return match?.[1] || null;
+}
+
+export function assignmentVersionFromKey(eventKey: string | null | undefined) {
+  const match = /:v(\d+)$/.exec(eventKey?.trim() ?? "");
+  return match ? Number(match[1]) : null;
+}
+
+// A notice from an earlier assignment stays invalid when that captain is assigned again.
+function assignmentStillCurrent(eventKey: string | null | undefined, subject: SubjectSnapshot) {
+  const named = assignedCaptainId(eventKey);
+  const version = assignmentVersionFromKey(eventKey);
+  if (!named || version == null || !Number.isInteger(version)) return false;
+  if (subject.rideStatus === "cancelled" || subject.rideStatus === "completed" || subject.rideStatus === "expired") return false;
+  if (!["assigned", "arrived", "on_trip"].includes(subject.rideStatus ?? "")) return false;
+  if (!subject.captainId || named !== subject.captainId) return false;
+  return subject.assignmentVersion === version;
+}
+
+// The trigger inserted this row in the ride transaction. The application may claim it at once.
+export function duplicateMayClaimNow(row: DeliveryRow | null, now: number) {
+  return Boolean(row && claimMatches(row) && now - row.updatedAt < STALE_MS);
 }

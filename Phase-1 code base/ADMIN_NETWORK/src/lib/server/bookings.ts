@@ -4,8 +4,8 @@ import { ApiError, check } from "./api";
 import { PLATFORM_WALLET, type Row } from "./data";
 import { controls, db } from "./db";
 import { pushAttempt } from "../delivery";
-import { holdForCancellation, mayCallProvider, pushFromStored, stableEventId, stillRelevant, type SubjectSnapshot } from "../deliveryClaim";
-import { advanceEvent, beginProvider, finishProvider, rememberEvent, skipClaimed, storePayload, strandedEvents } from "./deliveryStore";
+import { duplicateMayClaimNow, holdForCancellation, mayCallProvider, pushFromStored, stableEventId, stillRelevant, type SubjectSnapshot } from "../deliveryClaim";
+import { advanceEvent, beginProvider, finishProvider, readEvent, rememberEvent, skipClaimed, storePayload, strandedEvents } from "./deliveryStore";
 import { loadtestBlocks } from "../loadtestGuard";
 import { observe } from "./observe";
 import { kickConsumers } from "./rides";
@@ -167,9 +167,12 @@ async function subjectSnapshot(refType: string | null, refId: string | null, off
   try {
     const subject: SubjectSnapshot = {};
     if (refType === "trip" && refId) {
-      const { data, error } = await db().from("trips").select("status").eq("id", refId).maybeSingle();
+      const { data, error } = await db().from("trips").select("status,captain_id,assignment_version").eq("id", refId).maybeSingle();
       if (error) return null;
       subject.rideStatus = data?.status == null ? null : String(data.status);
+      subject.captainId = data?.captain_id == null ? null : String(data.captain_id);
+      const version = Number(data?.assignment_version);
+      subject.assignmentVersion = Number.isInteger(version) ? version : null;
     }
     if (refType === "booking" && refId) {
       const { data, error } = await db().from("seat_bookings").select("status,trip_id").eq("id", refId).maybeSingle();
@@ -216,13 +219,13 @@ async function sendPush(userId: string, app: "rider" | "captain", title: string,
 }
 
 // One provider call after the provider-start update commits. Unknown is not sent again.
-async function openAndSend(eventId: string, kind: string, channel: "rides" | "offers", refType: string | undefined, refId: string, offerId: string | undefined, ownsInsert: boolean, send: () => Promise<{ status: string }>) {
+async function openAndSend(eventId: string, kind: string, channel: "rides" | "offers", refType: string | undefined, refId: string, offerId: string | undefined, ownsInsert: boolean, claimNow: boolean, send: () => Promise<{ status: string }>) {
   const now = Date.now();
-  const advance = await advanceEvent(eventId, now, ownsInsert);
+  const advance = await advanceEvent(eventId, now, ownsInsert, claimNow);
   if (advance !== "begin") return;
-  if (!ownsInsert) {
+  if (!ownsInsert || kind === "captain_assigned") {
     const subject = await subjectSnapshot(refType ?? null, refId, offerId ?? null);
-    if (!stillRelevant(kind, channel, now, subject)) {
+    if (!stillRelevant(kind, channel, now, subject, eventId)) {
       await skipClaimed(eventId, subject ? "stale_subject" : "status_unreadable");
       return;
     }
@@ -266,7 +269,7 @@ async function recoverStranded() {
     const message = pushFromStored(row);
     if (!message) continue;
     const channel = row.channel === "offers" ? "offers" : "rides";
-    await openAndSend(row.eventKey, row.kind, channel, row.refType ?? undefined, row.refId ?? "", row.offerId ?? undefined, false, () => sendPush(message.userId, message.app, message.title, message.body, { eventId: row.eventKey, kind: row.kind }, channel, row.eventKey));
+    await openAndSend(row.eventKey, row.kind, channel, row.refType ?? undefined, row.refId ?? "", row.offerId ?? undefined, false, false, () => sendPush(message.userId, message.app, message.title, message.body, { eventId: row.eventKey, kind: row.kind }, channel, row.eventKey));
   }
 }
 
@@ -295,7 +298,9 @@ export async function notify(userId: string | null | undefined, app: "rider" | "
   const gate = await rememberEvent({ eventKey: eventId, kind, channel, audience: app, refType, refId, status: "queued" });
   if (gate === "pending") return;
   await storePayload(eventId, { userId, title, body, offerId });
-  await openAndSend(eventId, kind, channel, refType, refId, offerId, gate === "stored", () => sendPush(userId, app, title, body, data, channel, eventId));
+  const existing = gate === "duplicate" ? await readEvent(eventId) : null;
+  const claimNow = duplicateMayClaimNow(existing, Date.now());
+  await openAndSend(eventId, kind, channel, refType, refId, offerId, gate === "stored", claimNow, () => sendPush(userId, app, title, body, data, channel, eventId));
 }
 
 // Money ever moved on a record means it can only be cancelled or refunded, never deleted.

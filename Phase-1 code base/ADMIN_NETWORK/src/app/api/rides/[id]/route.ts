@@ -3,6 +3,7 @@ import { ApiError, check, mustId, readBody, route, uuid } from "@/lib/server/api
 import { can } from "@/lib/roles";
 import { audit, requireAdmin, type Admin } from "@/lib/server/auth";
 import { activity, moneyMoved, notify } from "@/lib/server/bookings";
+import { captainAssignedKey, captainChangedKey, deskAssignKey, deskCancelledCaptainKey, deskCancelledRiderKey, deskReleasedKey } from "@/lib/deliveryClaim";
 import type { Row } from "@/lib/server/data";
 import { db } from "@/lib/server/db";
 import { kickConsumers, OPEN, owed, rideLine, whoOwns } from "@/lib/server/rides";
@@ -79,6 +80,8 @@ export const POST = route<{ id: string }>(async (req, { id }) => {
     const { data } = await db().from("trips").update({ status: "cancelled", cancelled_by: "system", cancel_reason: input.reason, cancelled_at: now }).eq("id", id).in("status", OPEN).select("id");
     if (!data?.length) throw new ApiError("This ride has moved on. Refresh and try again.", 409);
     await db().from("trip_offers").update({ status: "withdrawn", decided_at: now }).eq("trip_id", id).eq("status", "offered");
+    await notify(String(trip.rider_id), "rider", `Ride ${trip.code} was cancelled`, input.reason, { tripId: id, code: trip.code, kind: "ride_cancelled", eventId: deskCancelledRiderKey(id) });
+    if (trip.captain_id) await notify(String(trip.captain_id), "captain", `Ride ${trip.code} was cancelled`, "Stay on duty for the next request.", { tripId: id, code: trip.code, kind: "ride_cancelled", eventId: deskCancelledCaptainKey(id, String(trip.captain_id)) }, "offers");
   } else if (input.action === "assign") {
     // The desk gives the ride to a chosen captain: before pickup only, same vehicle, captain free.
     if (!input.captainId) throw new ApiError("Pick the captain to assign.", 400);
@@ -86,17 +89,21 @@ export const POST = route<{ id: string }>(async (req, { id }) => {
     const { data: captain } = await db().from("captains").select("user_id,name,captain_code,status,service,vehicle").eq("user_id", input.captainId).maybeSingle();
     if (!captain || captain.status !== "active" || captain.service !== "taxi" || captain.vehicle !== trip.vehicle) throw new ApiError("Pick an active captain who drives this vehicle.", 400);
     if (captain.user_id === trip.captain_id) throw new ApiError("This captain already has the ride.", 409);
-    const saved = await db().from("trips").update({ captain_id: captain.user_id, status: "assigned", assigned_at: now, updated_at: now }).eq("id", id).in("status", ["searching", "assigned"]).select("id");
+    const previousVersion = Number(trip.assignment_version);
+    const saved = await db().from("trips").update({ captain_id: captain.user_id, status: "assigned", assigned_at: now, updated_at: now }).eq("id", id).in("status", ["searching", "assigned"]).select("id,assignment_version");
     if (saved.error?.code === "23505") throw new ApiError(`${captain.name} is already on another ride.`, 409);
     if (!check(saved).length) throw new ApiError("This ride has moved on. Refresh and try again.", 409);
     await db().from("trip_offers").update({ status: "withdrawn", decided_at: now }).eq("trip_id", id).eq("status", "offered");
     extra = { from: trip.captain_id, to: captain.user_id, captain: `${captain.name} · ${captain.captain_code}` };
     const data = { tripId: id, code: trip.code };
-    await notify(captain.user_id, "captain", `ROVEYA desk gave you ride ${trip.code}`, `Pickup at ${trip.pickup_name}. Open the app to start.`, { ...data, kind: "captain_assigned", eventId: `city:${id}:desk-assign:${captain.user_id}` }, "offers");
-    if (trip.captain_id) {
-      await notify(trip.captain_id, "captain", `Ride ${trip.code} moved to another captain`, "The ROVEYA desk reassigned it. Stay on duty for the next request.", { ...data, kind: "ride_cancelled", eventId: `city:${id}:desk-released:${trip.captain_id}` }, "offers");
-      // From searching to assigned the database tells the passenger; a swap of captains it does not.
-      await notify(trip.rider_id, "rider", `New captain for ${trip.code}`, `${captain.name.split(" ")[0]} is on the way. Open the app to track the ride.`, { ...data, kind: "captain_assigned", eventId: `city:${id}:captain-changed:${captain.user_id}` });
+    const version = Number(saved.data?.[0]?.assignment_version);
+    if (Number.isInteger(version)) {
+      await notify(captain.user_id, "captain", `ROVEYA desk gave you ride ${trip.code}`, `Pickup at ${trip.pickup_name}. Open the app to start.`, { ...data, kind: "captain_assigned", eventId: deskAssignKey(id, captain.user_id, version) }, "offers");
+      if (!trip.captain_id) await notify(String(trip.rider_id), "rider", "Captain assigned", `${trip.code} has a captain.`, { ...data, kind: "captain_assigned", eventId: captainAssignedKey(id, captain.user_id, version) });
+    }
+    if (trip.captain_id && Number.isInteger(previousVersion) && Number.isInteger(version)) {
+      await notify(trip.captain_id, "captain", `Ride ${trip.code} moved to another captain`, "The ROVEYA desk reassigned it. Stay on duty for the next request.", { ...data, kind: "ride_cancelled", eventId: deskReleasedKey(id, String(trip.captain_id), previousVersion) }, "offers");
+      await notify(trip.rider_id, "rider", `New captain for ${trip.code}`, `${captain.name.split(" ")[0]} is on the way. Open the app to track the ride.`, { ...data, kind: "captain_assigned", eventId: captainChangedKey(id, captain.user_id, version) });
     }
   } else {
     if (!["cash", "upi", "online"].includes(String(trip.payment)) || trip.status !== "completed" || trip.payment_status === "paid") throw new ApiError("Only a completed ride that is still due can be marked collected.", 409);

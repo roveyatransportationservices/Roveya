@@ -107,9 +107,14 @@ export async function staleEventKeys(now: number) {
   return data.map((row) => String(row.event_key));
 }
 
-export async function advanceEvent(eventKey: string, now: number, ownsInsert: boolean) {
-  if (ownsInsert) {
+export async function advanceEvent(eventKey: string, now: number, ownsInsert: boolean, claimNow = false) {
+  if (ownsInsert || claimNow) {
     try {
+      if (!ownsInsert) {
+        const existing = await readEvent(eventKey);
+        if (!existing || !claimMatches(existing)) return "stop" as const;
+        return (await claimEvent(eventKey, existing.attempts)) ? "begin" as const : "stop" as const;
+      }
       return (await claimEvent(eventKey, 0)) ? "begin" as const : "stop" as const;
     } catch {
       return "stop" as const;

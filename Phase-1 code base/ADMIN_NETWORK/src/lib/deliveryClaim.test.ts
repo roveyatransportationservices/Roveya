@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { CLAIM_NOTE, PROVIDER_NOTE, STALE_MS, abandonMatches, afterRead, beginMatches, claimMatches, holdForCancellation, mayCallProvider, nextAction, offerNoticeKey, ownerAction, pushFromStored, reclaimMatches, stableEventId, stillRelevant, type DeliveryRow } from "./deliveryClaim";
+import { CLAIM_NOTE, PROVIDER_NOTE, STALE_MS, abandonMatches, afterRead, assignedCaptainId, assignmentVersionFromKey, beginMatches, captainAssignedKey, captainChangedKey, claimMatches, deskAssignKey, deskCancelledCaptainKey, deskCancelledRiderKey, deskReleasedKey, duplicateMayClaimNow, holdForCancellation, mayCallProvider, nextAction, offerNoticeKey, ownerAction, pushFromStored, reclaimMatches, riderCancelledKey, searchExpiredKey, stableEventId, stillRelevant, type DeliveryRow } from "./deliveryClaim";
 
 type Outcome = "ok" | "error" | "timeout";
 
@@ -154,20 +154,40 @@ test("a later delivery skips an offer that was rejected, expired, cancelled, or 
   assert.equal(stillRelevant("captain_assigned", "rides", now, { rideStatus: "cancelled" }), false);
 });
 
-test("queued recovery is on the offer timer and the trigger functions cannot send", () => {
+test("queued recovery is on the offer timer and the outbox patch does not send", () => {
   const bookings = readFileSync(new URL("./server/bookings.ts", import.meta.url), "utf8");
   const rides = readFileSync(new URL("./server/cityRides.ts", import.meta.url), "utf8");
+  const desk = readFileSync(new URL("../app/api/rides/[id]/route.ts", import.meta.url), "utf8");
   const cron = readFileSync(new URL("../../../../supabase/migrations/20261021100100_mobile_cron.sql", import.meta.url), "utf8");
-  const proposed = readFileSync(new URL("../../../../ROVEYA_PHASE3_STAGING/notice_triggers_noop.sql", import.meta.url), "utf8");
+  const proposed = readFileSync(new URL("../../../../ROVEYA_PHASE3_STAGING/unified_notice_outbox.sql", import.meta.url), "utf8");
   const functions = proposed.replace(/--[^\n]*/g, "");
   assert.match(bookings, /export async function recoverQueuedNotices/);
+  assert.match(bookings, /duplicateMayClaimNow/);
   assert.match(rides, /recoverQueuedNotices\(\)/);
+  assert.match(rides, /searchExpiredKey/);
+  assert.match(rides, /riderCancelledKey/);
+  assert.match(rides, /captainAssignedKey/);
+  assert.match(desk, /deskCancelledRiderKey/);
+  assert.match(desk, /deskCancelledCaptainKey/);
+  assert.match(desk, /captainAssignedKey/);
+  assert.match(desk, /deskAssignKey/);
+  assert.match(desk, /captainChangedKey/);
+  assert.match(rides, /captainReleasedKey/);
   assert.doesNotMatch(cron, /communication_events/);
   assert.match(functions, /function public\.offers_push/);
   assert.match(functions, /function public\.trips_push/);
-  assert.equal(functions.match(/return new;/g)?.length, 2);
+  assert.match(functions, /function public\.enqueue_notice/);
+  assert.match(functions, /on conflict \(event_key\) do nothing/);
+  assert.match(functions, /captain:offer:/);
+  assert.match(functions, /:no-captain/);
+  assert.match(functions, /:assigned:/);
+  assert.match(functions, /:captain-changed:/);
+  assert.match(functions, /:desk-assign:/);
+  assert.match(functions, /assignment_version/);
+  assert.match(functions, /:desk-cancelled/);
+  assert.match(functions, /:rider-cancelled:/);
   assert.doesNotMatch(functions, /push_send/);
-  assert.doesNotMatch(functions, /insert/);
+  assert.doesNotMatch(functions, /net\.http_post/);
   const crashed = row({ status: "queued", updatedAt: 1_000 });
   assert.equal(nextAction(crashed, 1_000 + STALE_MS), "claim");
   assert.equal(run(crashed, 1_000 + STALE_MS, false, "ok", false, "offer_created").sends, 1);
@@ -176,13 +196,45 @@ test("queued recovery is on the offer timer and the trigger functions cannot sen
   assert.equal(nextAction(row({ status: "unknown", lastError: PROVIDER_NOTE, updatedAt: 1_000 }), 1_000 + STALE_MS), "stop");
 });
 
+test("the five gap keys stay distinct, and a fresh duplicate can be claimed once", () => {
+  const trip = "trip-1";
+  const captain = "captain-1";
+  const other = "captain-2";
+  assert.equal(searchExpiredKey(trip), "city:trip-1:no-captain");
+  assert.equal(captainAssignedKey(trip, captain, 1), "city:trip-1:assigned:captain-1:v1");
+  assert.notEqual(captainAssignedKey(trip, captain, 1), captainAssignedKey(trip, captain, 2));
+  assert.equal(captainChangedKey(trip, captain, 3), "city:trip-1:captain-changed:captain-1:v3");
+  assert.equal(deskAssignKey(trip, captain, 3), "city:trip-1:desk-assign:captain-1:v3");
+  assert.equal(deskReleasedKey(trip, other, 2), "city:trip-1:desk-released:captain-2:v2");
+  assert.equal(riderCancelledKey(trip, captain), "city:trip-1:rider-cancelled:captain-1");
+  assert.equal(deskCancelledRiderKey(trip), "city:trip-1:desk-cancelled");
+  assert.equal(deskCancelledCaptainKey(trip, captain), "city:trip-1:desk-cancelled:captain-1");
+  assert.equal(assignedCaptainId(captainAssignedKey(trip, captain, 4)), captain);
+  assert.equal(assignmentVersionFromKey(captainAssignedKey(trip, captain, 4)), 4);
+  assert.equal(assignmentVersionFromKey("city:trip-1:assigned:captain-1"), null);
+  const now = 20_000;
+  const fresh = row({ status: "queued", updatedAt: now - 1_000 });
+  assert.equal(duplicateMayClaimNow(fresh, now), true);
+  assert.equal(duplicateMayClaimNow(row({ status: "queued", lastError: CLAIM_NOTE, updatedAt: now - 1_000 }), now), false);
+  assert.equal(duplicateMayClaimNow(row({ status: "queued", updatedAt: now - STALE_MS }), now), false);
+  assert.equal(duplicateMayClaimNow(row({ status: "unknown", lastError: PROVIDER_NOTE, updatedAt: now }), now), false);
+  const current = { rideStatus: "assigned", captainId: captain, assignmentVersion: 2 };
+  assert.equal(stillRelevant("captain_assigned", "rides", now, { ...current, captainId: other }, captainAssignedKey(trip, captain, 2)), false);
+  assert.equal(stillRelevant("captain_assigned", "rides", now, current, captainAssignedKey(trip, captain, 2)), true);
+  assert.equal(stillRelevant("captain_assigned", "rides", now, current, captainAssignedKey(trip, captain, 1)), false);
+  assert.equal(stillRelevant("captain_assigned", "rides", now, { ...current, assignmentVersion: 3 }, captainAssignedKey(trip, captain, 1)), false);
+  assert.equal(stillRelevant("captain_assigned", "rides", now, { ...current, rideStatus: "cancelled" }, captainAssignedKey(trip, captain, 2)), false);
+  assert.equal(stillRelevant("captain_assigned", "rides", now, { ...current, rideStatus: "completed" }, captainAssignedKey(trip, captain, 2)), false);
+  assert.equal(stillRelevant("captain_assigned", "rides", now, current, "city:trip-1:assigned:captain-1"), false);
+});
+
 test("recovery skips expired offers, offline captains, and finished rides", () => {
   const now = 10_000;
-  assert.equal(stillRelevant("captain_assigned", "offers", now, { offerStatus: "offered", offerExpiresAt: now - 1, captainOnline: true }), false);
-  assert.equal(stillRelevant("captain_assigned", "offers", now, { offerStatus: "offered", offerExpiresAt: now + 1_000, captainOnline: false }), false);
-  assert.equal(stillRelevant("captain_assigned", "offers", now, { offerStatus: "offered", offerExpiresAt: now + 1_000, captainOnline: true }), true);
-  assert.equal(stillRelevant("captain_assigned", "rides", now, { rideStatus: "cancelled" }), false);
-  assert.equal(stillRelevant("captain_assigned", "rides", now, { rideStatus: "completed" }), false);
+  assert.equal(stillRelevant("captain_assigned", "offers", now, { rideStatus: "assigned", captainId: "captain-1", assignmentVersion: 1 }, deskAssignKey("trip-1", "captain-1", 1)), true);
+  assert.equal(stillRelevant("captain_assigned", "offers", now, { rideStatus: "assigned", captainId: "captain-1", assignmentVersion: 2 }, deskAssignKey("trip-1", "captain-1", 1)), false);
+  assert.equal(stillRelevant("captain_assigned", "offers", now, { rideStatus: "searching", captainId: "captain-1", assignmentVersion: 1 }, deskAssignKey("trip-1", "captain-1", 1)), false);
+  assert.equal(stillRelevant("captain_assigned", "rides", now, { rideStatus: "cancelled", captainId: "captain-1", assignmentVersion: 1 }, captainAssignedKey("trip-1", "captain-1", 1)), false);
+  assert.equal(stillRelevant("captain_assigned", "rides", now, { rideStatus: "completed", captainId: "captain-1", assignmentVersion: 1 }, captainAssignedKey("trip-1", "captain-1", 1)), false);
   assert.equal(stillRelevant("ride_completed", "rides", now, { rideStatus: "completed" }), true);
   assert.equal(stillRelevant("carpool_confirmed", "rides", now, { bookingStatus: "cancelled" }), false);
   assert.equal(stillRelevant("carpool_departed", "rides", now, { rideStatus: "completed" }), false);

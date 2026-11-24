@@ -1,6 +1,6 @@
 import { createHash, createHmac, randomInt, randomUUID, timingSafeEqual } from "node:crypto";
 import { ApiError } from "./api";
-import { offerNoticeKey } from "../deliveryClaim";
+import { captainAssignedKey, captainReleasedKey, offerNoticeKey, riderCancelledKey, searchExpiredKey } from "../deliveryClaim";
 import { notify, recoverQueuedNotices, pricePair, priceRide, type CityVehicle, type Place } from "./bookings";
 import { noticeCopy } from "../delivery";
 import { cityReceipt } from "../receipt";
@@ -459,7 +459,7 @@ async function offerOneTrip(tripId: string) {
     if (closed.data?.length) {
       await db().from("trip_offers").update({ status: "withdrawn", decided_at: now }).eq("trip_id", tripId).eq("status", "offered");
       await remember(tripId, "expired", "Search ended with no acceptance");
-      void notify(String(trip.rider_id), "rider", "No captain was free", `${trip.code} ended. Please book again.`, { tripId, code: trip.code, kind: "ride_cancelled", eventId: `city:${tripId}:no-captain` });
+      void notify(String(trip.rider_id), "rider", "No captain was free", `${trip.code} ended. Please book again.`, { tripId, code: trip.code, kind: "ride_cancelled", eventId: searchExpiredKey(tripId) });
     }
     return;
   }
@@ -509,7 +509,7 @@ async function offerOneTrip(tripId: string) {
   if (first && spot?.auto_accept) {
     if (await assignTrip(tripId, first.id)) {
       await db().from("trip_offers").insert({ trip_id: tripId, captain_id: first.id, status: "accepted", pickup_km: Math.round(first.pickupKm * 10) / 10, expires_at: now, decided_at: now });
-      void notify(String(trip.rider_id), "rider", "Captain assigned", `${trip.code} has a captain.`, { tripId, code: trip.code, kind: "captain_assigned", eventId: `city:${tripId}:assigned` });
+      await tellRiderAssigned(tripId, first.id);
       return;
     }
     skipped = 1;
@@ -763,6 +763,7 @@ export async function cancelRide(riderId: string, tripId: string, reason: string
   if (!missing) {
     if (rpc.error || !rpc.data) throw new ApiError("This ride has started. It finishes at the drop.", 409);
     await remember(tripId, "customer_cancelled", note);
+    await tellCaptainRiderCancelled(tripId);
     return { ok: true };
   }
   const { data } = await db().from("trips").select("id,status").eq("id", tripId).eq("rider_id", riderId).maybeSingle();
@@ -773,7 +774,14 @@ export async function cancelRide(riderId: string, tripId: string, reason: string
   if (!closed.data?.length) throw new ApiError("This ride has started. It finishes at the drop.", 409);
   await db().from("trip_offers").update({ status: "withdrawn", decided_at: now }).eq("trip_id", tripId).eq("status", "offered");
   await remember(tripId, "customer_cancelled", note);
+  await tellCaptainRiderCancelled(tripId);
   return { ok: true };
+}
+
+async function tellCaptainRiderCancelled(tripId: string) {
+  const trip = await db().from("trips").select("captain_id,code,status").eq("id", tripId).maybeSingle();
+  if (trip.data?.status !== "cancelled" || !trip.data.captain_id) return;
+  void notify(String(trip.data.captain_id), "captain", `Ride ${trip.data.code} was cancelled`, "Stay on duty for the next request.", { tripId, code: trip.data.code, kind: "ride_cancelled", eventId: riderCancelledKey(tripId, String(trip.data.captain_id)) }, "offers");
 }
 
 export async function nearby(vehicle: string, lat: number, lng: number) {
@@ -917,9 +925,11 @@ export async function currentOffer(captainId: string) {
   return { offer: await offerCard(data as Row, trip as Row) };
 }
 
-async function tellRiderAssigned(tripId: string) {
-  const trip = await db().from("trips").select("rider_id,code").eq("id", tripId).maybeSingle();
-  if (trip.data) void notify(String(trip.data.rider_id), "rider", "Captain assigned", `${trip.data.code} has a captain.`, { tripId, code: trip.data.code, kind: "captain_assigned", eventId: `city:${tripId}:assigned` });
+async function tellRiderAssigned(tripId: string, captainId: string) {
+  const trip = await db().from("trips").select("rider_id,code,captain_id,assignment_version").eq("id", tripId).maybeSingle();
+  const version = Number(trip.data?.assignment_version);
+  if (!trip.data || String(trip.data.captain_id) !== captainId || !Number.isInteger(version)) return;
+  void notify(String(trip.data.rider_id), "rider", "Captain assigned", `${trip.data.code} has a captain.`, { tripId, code: trip.data.code, kind: "captain_assigned", eventId: captainAssignedKey(tripId, captainId, version) });
 }
 
 export async function acceptOffer(captainId: string, offerId: string) {
@@ -930,7 +940,7 @@ export async function acceptOffer(captainId: string, offerId: string) {
     const offer = await db().from("trip_offers").select("trip_id").eq("id", offerId).maybeSingle();
     if (offer.data?.trip_id) {
       await remember(String(offer.data.trip_id), "assigned", captainId);
-      await tellRiderAssigned(String(offer.data.trip_id));
+      await tellRiderAssigned(String(offer.data.trip_id), captainId);
     }
     return { ok: true };
   }
@@ -946,7 +956,7 @@ export async function acceptOffer(captainId: string, offerId: string) {
     await db().from("trip_offers").update({ status: "withdrawn", decided_at: now }).eq("id", offerId).eq("status", "accepted");
     throw new ApiError("This ride request is no longer available.", 409);
   }
-  await tellRiderAssigned(String(taken.data.trip_id));
+  await tellRiderAssigned(String(taken.data.trip_id), captainId);
   return { ok: true };
 }
 
@@ -1055,11 +1065,12 @@ export async function captainTripAction(captainId: string, tripId: string, actio
       .eq("id", tripId)
       .eq("captain_id", captainId)
       .in("status", ["assigned", "arrived"])
-      .select("rider_id,code");
+      .select("rider_id,code,assignment_version");
     if (!released.data?.length) throw new ApiError("This ride can no longer be cancelled.", 409);
     await db().from("trip_offers").insert({ trip_id: tripId, captain_id: captainId, status: "rejected", pickup_km: 0, expires_at: now, decided_at: now });
     await remember(tripId, "captain_cancelled", body.reason ?? "Captain cancelled");
-    void notify(String(released.data[0].rider_id), "rider", "Looking for another captain", `${released.data[0].code} is being offered again.`, { tripId, code: released.data[0].code, kind: "ride_cancelled", eventId: `city:${tripId}:captain-released` });
+    const releasedVersion = Number(released.data[0].assignment_version);
+    if (Number.isInteger(releasedVersion)) void notify(String(released.data[0].rider_id), "rider", "Looking for another captain", `${released.data[0].code} is being offered again.`, { tripId, code: released.data[0].code, kind: "ride_cancelled", eventId: captainReleasedKey(tripId, captainId, releasedVersion) });
     await offerNext(tripId);
     return { ok: true, reassigned: true };
   }
