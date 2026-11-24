@@ -32,7 +32,29 @@ test("proposed renew_online_day_fee uses Asia/Kolkata and preserves active rides
   assert.match(sql, /insufficient_wallet_balance/);
   assert.match(sql, /activeRidePreserved/);
   assert.match(sql, /auto_renewal/);
+  assert.match(sql, /'eligibleForNewRides', false/);
+  assert.doesNotMatch(sql, /captain_day_/);
   assert.match(sql, /grant execute on function public\.renew_online_day_fee\(uuid, integer\) to service_role/);
+});
+
+test("proposed prepaid fee SQL removes monthly bypass and hardcodes founder amounts", () => {
+  const charge = readFileSync(join(root, "../../supabase/proposed/20261121240000_charge_active_day.sql"), "utf8");
+  const goOnline = readFileSync(join(root, "../../supabase/proposed/20261124180000_prepaid_go_online.sql"), "utf8");
+  assert.doesNotMatch(charge, /captain_day_/);
+  assert.doesNotMatch(goOnline, /captain_day_/);
+  assert.match(charge, /1000 else 1200/);
+  assert.match(goOnline, /1000 else 1200/);
+  assert.match(charge, /captains[\s\S]*for update/);
+  assert.match(charge, /wallets[\s\S]*for update/);
+  assert.match(goOnline, /captain_presence[\s\S]*for update/);
+});
+
+test("proposed matching SQL blocks unpaid captains at accept and offer", () => {
+  const sql = readFileSync(join(root, "../../supabase/proposed/20261124220000_city_day_fee_matching.sql"), "utf8");
+  assert.match(sql, /captain_paid_active_day/);
+  assert.match(sql, /active_day_/);
+  assert.match(sql, /accept_city_offer/);
+  assert.match(sql, /offer_next_captain/);
 });
 
 test("wallet top-up endpoint stays closed for captains until funding is ready", () => {

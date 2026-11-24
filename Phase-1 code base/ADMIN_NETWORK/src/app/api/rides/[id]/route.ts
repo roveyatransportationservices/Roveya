@@ -89,6 +89,15 @@ export const POST = route<{ id: string }>(async (req, { id }) => {
     const { data: captain } = await db().from("captains").select("user_id,name,captain_code,status,service,vehicle").eq("user_id", input.captainId).maybeSingle();
     if (!captain || captain.status !== "active" || captain.service !== "taxi" || captain.vehicle !== trip.vehicle) throw new ApiError("Pick an active captain who drives this vehicle.", 400);
     if (captain.user_id === trip.captain_id) throw new ApiError("This captain already has the ride.", 409);
+    // Desk assignment must honour the same IST prepaid day-fee gate as matching.
+    if (captain.vehicle === "bike" || captain.vehicle === "auto") {
+      const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+      const feeKey = `active_day_${captain.user_id}_${day}`;
+      const { data: fee } = await db().from("platform_settings").select("key").eq("key", feeKey).maybeSingle();
+      if (!fee?.key) throw new ApiError("This captain has not paid today's platform fee.", 409);
+      const { data: presence } = await db().from("captain_presence").select("online").eq("captain_id", captain.user_id).maybeSingle();
+      if (!presence?.online) throw new ApiError("This captain is offline and cannot take a new ride.", 409);
+    }
     const previousVersion = Number(trip.assignment_version);
     const saved = await db().from("trips").update({ captain_id: captain.user_id, status: "assigned", assigned_at: now, updated_at: now }).eq("id", id).in("status", ["searching", "assigned"]).select("id,assignment_version");
     if (saved.error?.code === "23505") throw new ApiError(`${captain.name} is already on another ride.`, 409);

@@ -1,10 +1,10 @@
--- Proposed. Apply to staging only after isolated PostgreSQL validation.
+-- Proposed. Staging only after founder preflight.
 -- Automatic IST daily fee renewal for Captains who remain genuinely online.
--- Founder-approved: renew at Asia/Kolkata day boundary without interrupting existing rides.
---
--- Dependencies: wallets, ledger_post, captains, captain_presence, trips, platform_settings.
--- Rollback:
---   drop function if exists public.renew_online_day_fee(uuid, integer);
+-- Lock order:
+--   1) captains  2) wallets  3) captain_presence  4) advisory(day key)  5) marker + ledger / presence updates
+-- Offline Captains are never charged and are never eligible for new rides.
+-- No monthly-plan exemption. Founder amounts: Bike 1000 / Auto 1200 paise.
+-- Rollback: drop function public.renew_online_day_fee(uuid, integer); do not delete ledger/markers.
 
 create or replace function public.renew_online_day_fee(
   p_captain uuid,
@@ -18,12 +18,9 @@ as $$
 declare
   v_status text;
   v_vehicle text;
-  v_mode text;
   v_day text;
   v_key text;
   v_existing text;
-  v_book text;
-  v_rupees numeric;
   v_paise bigint := 0;
   v_balance bigint;
   v_online boolean;
@@ -33,8 +30,6 @@ declare
   v_stale_seconds integer := greatest(coalesce(p_stale_seconds, 180), 30);
   v_active_ride boolean := false;
   v_went_offline boolean := false;
-  v_eligible boolean := false;
-  v_charged boolean := false;
 begin
   select status, vehicle into v_status, v_vehicle
   from public.captains
@@ -50,28 +45,27 @@ begin
     return jsonb_build_object('ok', false, 'reason', 'vehicle_not_supported', 'eligibleForNewRides', false);
   end if;
 
-  select value into v_mode from public.platform_settings where key = 'ride_plan_mode';
-  v_day := to_char(v_now at time zone 'Asia/Kolkata', 'YYYY-MM-DD');
-  v_key := 'active_day_' || p_captain::text || '_' || v_day;
-
   perform 1 from public.wallets where owner_id = p_captain for update;
   if not found then
-    insert into public.wallets (owner_id, balance_paise) values (p_captain, 0)
+    insert into public.wallets (owner_id, owner_kind, balance_paise)
+    values (p_captain, 'captain', 0)
     on conflict (owner_id) do nothing;
     perform 1 from public.wallets where owner_id = p_captain for update;
-  end if;
-
-  perform pg_advisory_xact_lock(hashtextextended(v_key, 0));
-  select value into v_existing from public.platform_settings where key = v_key;
-  if v_existing is not null then
-    v_already := true;
-    v_eligible := true;
   end if;
 
   select online, updated_at into v_online, v_updated
   from public.captain_presence
   where captain_id = p_captain
   for update;
+
+  v_day := to_char(v_now at time zone 'Asia/Kolkata', 'YYYY-MM-DD');
+  v_key := 'active_day_' || p_captain::text || '_' || v_day;
+  perform pg_advisory_xact_lock(hashtextextended(v_key, 0));
+
+  select value into v_existing from public.platform_settings where key = v_key;
+  if v_existing is not null then
+    v_already := true;
+  end if;
 
   if not coalesce(v_online, false) then
     select balance_paise into v_balance from public.wallets where owner_id = p_captain;
@@ -82,17 +76,27 @@ begin
       'charged', false,
       'amountPaise', 0,
       'balancePaise', coalesce(v_balance, 0),
-      'eligibleForNewRides', v_already,
+      'feePaise', case when v_vehicle = 'bike' then 1000 else 1200 end,
+      'eligibleForNewRides', false,
       'wentOffline', false,
       'reason', 'offline'
     );
   end if;
 
   -- Stale abandoned sessions must not generate unjustified charges.
+  -- Existing assigned/arrived/on_trip rides are preserved (presence stays online for GPS).
   if v_updated is null or v_updated < (v_now - make_interval(secs => v_stale_seconds)) then
-    update public.captain_presence
-    set online = false, updated_at = v_now
-    where captain_id = p_captain;
+    select exists (
+      select 1 from public.trips
+      where captain_id = p_captain
+        and status in ('assigned', 'arrived', 'on_trip')
+    ) into v_active_ride;
+    if not v_active_ride then
+      update public.captain_presence
+      set online = false, updated_at = v_now
+      where captain_id = p_captain;
+      v_went_offline := true;
+    end if;
     select balance_paise into v_balance from public.wallets where owner_id = p_captain;
     return jsonb_build_object(
       'ok', true,
@@ -101,8 +105,10 @@ begin
       'charged', false,
       'amountPaise', 0,
       'balancePaise', coalesce(v_balance, 0),
+      'feePaise', case when v_vehicle = 'bike' then 1000 else 1200 end,
       'eligibleForNewRides', false,
-      'wentOffline', true,
+      'wentOffline', v_went_offline,
+      'activeRidePreserved', v_active_ride,
       'reason', 'stale_presence'
     );
   end if;
@@ -116,43 +122,14 @@ begin
       'charged', false,
       'amountPaise', 0,
       'balancePaise', coalesce(v_balance, 0),
+      'feePaise', case when v_vehicle = 'bike' then 1000 else 1200 end,
       'eligibleForNewRides', true,
       'wentOffline', false,
       'reason', 'already_paid'
     );
   end if;
 
-  if coalesce(v_mode, 'subscription') is distinct from 'commission' then
-    select value into v_book from public.platform_settings where key = 'captain_day_' || p_captain::text;
-    if v_book is null
-       or (v_book::jsonb ->> 'monthVehicle') is distinct from v_vehicle
-       or coalesce(v_book::jsonb ->> 'monthUntil', '') < v_day then
-      select value::numeric into v_rupees
-      from public.platform_settings
-      where key = case when v_vehicle = 'bike' then 'ride_bike_day' else 'ride_auto_day' end;
-      if v_rupees is null then
-        v_rupees := case when v_vehicle = 'bike' then 10 else 12 end;
-      end if;
-      v_paise := round(v_rupees * 100);
-    end if;
-  end if;
-
-  if v_paise <= 0 then
-    v_eligible := true;
-    select balance_paise into v_balance from public.wallets where owner_id = p_captain;
-    return jsonb_build_object(
-      'ok', true,
-      'day', v_day,
-      'alreadyPaid', false,
-      'charged', false,
-      'amountPaise', 0,
-      'balancePaise', coalesce(v_balance, 0),
-      'eligibleForNewRides', true,
-      'wentOffline', false,
-      'reason', 'no_fee'
-    );
-  end if;
-
+  v_paise := case when v_vehicle = 'bike' then 1000 else 1200 end;
   select balance_paise into v_balance from public.wallets where owner_id = p_captain;
   if coalesce(v_balance, 0) < v_paise then
     select exists (
@@ -204,7 +181,6 @@ begin
     'Active day fee · ' || v_vehicle || ' · ' || v_day,
     false
   );
-  v_charged := true;
   select balance_paise into v_balance from public.wallets where owner_id = p_captain;
 
   return jsonb_build_object(
@@ -214,6 +190,7 @@ begin
     'charged', true,
     'amountPaise', v_paise,
     'balancePaise', coalesce(v_balance, 0),
+    'feePaise', v_paise,
     'eligibleForNewRides', true,
     'wentOffline', false,
     'reason', 'charged'

@@ -68,6 +68,9 @@ test("proposed charge_active_day uses Asia/Kolkata and prepaid non-negative ledg
   assert.match(renew, /renew_online_day_fee/);
   assert.match(renew, /stale_presence/);
   assert.match(renew, /activeRidePreserved/);
+  assert.doesNotMatch(sql, /captain_day_/);
+  assert.doesNotMatch(goOnline, /captain_day_/);
+  assert.doesNotMatch(renew, /captain_day_/);
 });
 
 test("receipt email stays skipped when already sent and held without approval", () => {
