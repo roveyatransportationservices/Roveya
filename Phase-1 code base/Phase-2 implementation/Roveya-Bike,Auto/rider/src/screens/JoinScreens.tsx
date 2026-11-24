@@ -8,6 +8,7 @@ import { BannerCarousel } from "../components/BannerCarousel";
 import { VerifyClock } from "../components/VerifyClock";
 import { art, slide } from "../banners";
 import { api, live } from "../backend";
+import { cityDocumentsReady } from "../cityDocuments";
 import { pickDocumentPhoto, uploadDocument } from "../documents";
 import { captainFromServer, docsFromServer, isoDob, type ServerCaptain, type ServerDocument } from "../remote";
 import { Field } from "../components/Field";
@@ -135,7 +136,7 @@ export function RegisterScreen({ route, navigation }: NativeStackScreenProps<Cap
   const detailsOk = name.trim().length >= 3 && dobOk && Boolean(gender) && emailOk && emergencyName.trim().length >= 2 && /^[6-9]\d{9}$/.test(emergencyPhone);
   const plateOk = plateRule.test(plate.trim());
   const vehicleOk = plateOk && model.trim().length >= 2 && Boolean(color) && Boolean(year);
-  const docsOk = docs.selfie !== "missing" && docs.dlFront !== "missing" && docs.dlBack !== "missing" && docs.rc !== "missing" && (docs.aadhaar !== "missing" || docs.pan !== "missing");
+  const docsOk = cityDocumentsReady(docs);
   const bankOk = holder.trim().length >= 3 && /^\d{9,18}$/.test(account) && account === confirm && ifscRule.test(ifsc);
   const ready = [Boolean(vehicle), Boolean(city), detailsOk, vehicleOk, docsOk, bankOk, agreed][step];
 
@@ -353,7 +354,7 @@ export function RegisterScreen({ route, navigation }: NativeStackScreenProps<Cap
       ) : step === 4 ? (
         <>
           <Text style={styles.title}>Upload documents</Text>
-          <Text style={styles.lead}>Clear photos, all four corners in view. Aadhaar or PAN, one is enough.</Text>
+          <Text style={styles.lead}>Clear photos, all four corners in view. Aadhaar and PAN are both required.</Text>
           <View style={{ gap: 10 }}>
             {docOrder.map((doc) => (
               <DocTile key={doc} doc={doc} status={docs[doc]} busy={uploading === doc} photo={photos[doc]} onPress={() => void upload(doc)} />
