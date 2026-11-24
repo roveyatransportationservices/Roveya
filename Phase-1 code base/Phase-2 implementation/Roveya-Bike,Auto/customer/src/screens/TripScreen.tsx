@@ -6,7 +6,7 @@ import { api, watch } from "../backend";
 import { useStore } from "../store";
 import { colors, type } from "../theme";
 import type { CustomerStack } from "../navigation";
-import { nextTripStatus, preferFresherLocation } from "../clientSync";
+import { locationAfterCaptainChange, nextTripStatus, shouldReturnToSearching } from "../clientSync";
 import type { ActiveTrip } from "../types";
 import { FindingRide } from "./FindingRide";
 import { LiveTrip } from "./LiveTrip";
@@ -15,6 +15,7 @@ type ServerRide = {
   status: string;
   otp: string | null;
   cancelledBy: string | null;
+  captainUserId?: string | null;
   captain: {
     name: string;
     rating: number;
@@ -24,6 +25,8 @@ type ServerRide = {
     location: { latitude: number; longitude: number; heading: number; updatedAt?: string | null } | null;
   } | null;
 };
+
+const emptyCaptain = { name: "Looking for a captain", rating: 0, vehicleNo: "", vehicleName: "", trips: 0 };
 
 export function TripScreen({ navigation }: NativeStackScreenProps<CustomerStack, "Trip">) {
   const store = useStore();
@@ -47,16 +50,18 @@ export function TripScreen({ navigation }: NativeStackScreenProps<CustomerStack,
         store.cancelTrip();
         return;
       }
-      if (ride.status === "searching" && current.status !== "searching") {
+      if (shouldReturnToSearching(current.status, ride.status)) {
         setNotice("That captain dropped the ride. Still looking for the next one.");
-        store.patchTrip({ status: "searching", progress: 0 });
+        store.patchTrip({ status: "searching", progress: 0, captain: emptyCaptain, captainUserId: null, captainAt: undefined, otp: "" });
         return;
       }
       const next = nextTripStatus(current.status, ride.status);
       const patch: Partial<ActiveTrip> = {};
       if (next) patch.status = next;
       if (ride.otp) patch.otp = ride.otp;
+      const nextCaptainId = ride.captainUserId ?? null;
       if (ride.captain) {
+        patch.captainUserId = nextCaptainId;
         patch.captain = { ...current.captain, photo: undefined, name: ride.captain.name, rating: ride.captain.rating, trips: ride.captain.trips, vehicleNo: ride.captain.vehicleNo, vehicleName: ride.captain.vehicleName };
         if (ride.captain.location) {
           const incoming = {
@@ -65,9 +70,15 @@ export function TripScreen({ navigation }: NativeStackScreenProps<CustomerStack,
             heading: ride.captain.location.heading ?? 0,
             updatedAt: ride.captain.location.updatedAt ?? null,
           };
-          const kept = preferFresherLocation(current.captainAt ?? null, incoming);
+          const kept = locationAfterCaptainChange(current.captainUserId, nextCaptainId, current.captainAt ?? null, incoming);
           if (kept) patch.captainAt = kept;
+        } else if (nextCaptainId && current.captainUserId && nextCaptainId !== current.captainUserId) {
+          patch.captainAt = undefined;
         }
+      } else if (ride.status === "searching") {
+        patch.captain = emptyCaptain;
+        patch.captainUserId = null;
+        patch.captainAt = undefined;
       }
       store.patchTrip(patch);
     };

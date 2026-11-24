@@ -6,6 +6,8 @@ const root = process.cwd();
 
 const config: NextConfig = {
   poweredByHeader: false,
+  // Staging builds do not ship an ESLint install; typecheck remains via tsc / CI tests.
+  eslint: { ignoreDuringBuilds: true },
   turbopack: { root },
   outputFileTracingRoot: root,
   async headers() {

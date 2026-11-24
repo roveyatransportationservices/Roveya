@@ -748,6 +748,7 @@ export async function rideForPassenger(riderId: string, tripId: string) {
     cancelledBy: trip.cancelled_by,
     nearPickup: Boolean(here && nearPickup(here, pickup)),
     offRoute: Boolean(here && trip.status === "on_trip" && offRoute(here, pickup, drop)),
+    captainUserId: trip.captain_id ? String(trip.captain_id) : null,
     captain: captain
       ? { name: captain.name, rating: Number(captain.rating ?? 5), trips: 0, vehicleNo: captain.vehicle_no, vehicleName: captain.vehicle_model, location }
       : null,

@@ -1,4 +1,4 @@
-import { canTransition } from "./dispatch.ts";
+import { canTransition } from "./dispatch";
 
 export type RideStartDecision =
   | { ok: true; alreadyStarted?: boolean }

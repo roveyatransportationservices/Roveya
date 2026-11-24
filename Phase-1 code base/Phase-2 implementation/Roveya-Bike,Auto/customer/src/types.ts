@@ -106,5 +106,6 @@ export type ActiveTrip = {
   status: TripStatus;
   progress: number;
   serverId?: string;
+  captainUserId?: string | null;
   captainAt?: { latitude: number; longitude: number; heading: number; updatedAt?: string | null };
 };
