@@ -6,6 +6,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { HeroCarousel } from "../components/HeroCarousel";
 import { Keypad, SignInSheet } from "../components/SignInSheet";
 import { ApiError, live, sendCode, verifyCode } from "../backend";
+import { otpDestination } from "../otpDestination";
 import { captainFromServer, type ServerCaptain } from "../remote";
 import { useStore } from "../store";
 import { colors, type } from "../theme";
@@ -176,6 +177,7 @@ export function OtpScreen({ route, navigation }: NativeStackScreenProps<CaptainS
   const [checking, setChecking] = useState(false);
   const [unknown, setUnknown] = useState(false);
   const [seconds, setSeconds] = useState(resendAfter);
+  const [resending, setResending] = useState(false);
   const complete = code.length === 6;
 
   useEffect(() => {
@@ -227,21 +229,25 @@ export function OtpScreen({ route, navigation }: NativeStackScreenProps<CaptainS
   };
 
   const resend = () => {
+    if (resending) return;
     if (!live) {
       setError("Sign-in needs a connection. The code is sent to your phone or email.");
       return;
     }
-    setSeconds(resendAfter);
+    setResending(true);
     setCode("");
     setError("");
-    void sendCode(phone, email).then(() => setNote("A new code is on its way.")).catch((failure: unknown) => setError(failure instanceof Error ? failure.message : "The code could not be sent."));
+    void sendCode(phone, email).then(() => {
+      setSeconds(resendAfter);
+      setNote("A new code is on its way.");
+    }).catch((failure: unknown) => setError(failure instanceof Error ? failure.message : "The code could not be sent.")).finally(() => setResending(false));
   };
 
   return (
     <SignInSheet kicker="VERIFY" title="Enter the code" onBack={() => navigation.goBack()} onKey={press}>
       <View style={styles.sentRow}>
         <Text style={styles.sheetLine}>
-          Sent to <Text style={styles.sentNumber}>+91 {phone.slice(0, 5)} {phone.slice(5)}</Text>
+          Sent to <Text style={styles.sentNumber}>{otpDestination(phone, email) || "your email"}</Text>
         </Text>
         <Pressable accessibilityRole="button" hitSlop={8} onPress={() => navigation.goBack()}>
           <Text style={styles.changeLink}>Change</Text>
@@ -264,8 +270,8 @@ export function OtpScreen({ route, navigation }: NativeStackScreenProps<CaptainS
       </Text>
       {unknown ? (
         <View style={styles.notice}>
-          <Text style={styles.noticeTitle}>No captain account on this number yet</Text>
-          <Text style={styles.noticeLine}>Register now with +91 {phone.slice(0, 5)} {phone.slice(5)}, or log in with the number you joined with.</Text>
+          <Text style={styles.noticeTitle}>{email ? "No captain account on this email yet" : "No captain account on this number yet"}</Text>
+          <Text style={styles.noticeLine}>{email ? `Register now with ${otpDestination(phone, email)}, or log in with the email you joined with.` : `Register now with ${otpDestination(phone) || "this number"}, or log in with the number you joined with.`}</Text>
           <Pressable accessibilityRole="button" onPress={() => navigation.navigate("Service", { phone })} style={({ pressed }) => [styles.getCode, { marginTop: 2 }, pressed && { opacity: 0.9 }]}>
             <Text style={styles.getCodeText}>Register with this number</Text>
             <Ionicons name="arrow-forward" size={18} color={colors.night} />
@@ -296,8 +302,8 @@ export function OtpScreen({ route, navigation }: NativeStackScreenProps<CaptainS
         ) : (
           <Text style={styles.sheetLegal}>
             Did not get it?{" "}
-            <Text accessibilityRole="button" style={styles.link} onPress={resend}>
-              Resend code
+            <Text accessibilityRole="button" style={styles.link} onPress={resending ? undefined : resend}>
+              {resending ? "Sending" : "Resend code"}
             </Text>
           </Text>
         )}
