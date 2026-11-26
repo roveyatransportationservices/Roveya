@@ -202,8 +202,10 @@ async function handle(req: Request, path: string[]) {
 
   if (req.method === "POST" && key === "captain/register") {
     const who = await openSession(auth, "captain");
-    const rider = await db().from("riders").select("phone").eq("user_id", who.sub).maybeSingle();
+    const rider = await db().from("riders").select("phone,email").eq("user_id", who.sub).maybeSingle();
     const body = await bodyOf(req);
+    // Keep email from the signed-in rider when the form omits it.
+    if (!body.email && rider.data?.email) body.email = String(rider.data.email);
     return json(await registerCaptain(who.sub, String(rider.data?.phone ?? ""), body as Record<string, string>));
   }
   if (req.method === "GET" && key === "captain/me") return json(await captainMe((await openSession(auth, "captain")).sub));

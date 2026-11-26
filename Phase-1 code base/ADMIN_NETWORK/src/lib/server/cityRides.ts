@@ -1211,32 +1211,61 @@ export async function registerCaptain(userId: string, phone: string, input: Reco
   const existing = await db().from("captains").select("*").eq("user_id", userId).maybeSingle();
   if (existing.data) return { captain: existing.data };
   const account = String(input.accountNumber ?? "");
+  // Email OTP sign-in leaves riders.phone empty; captains.phone is still required (10-digit India mobile).
+  // Prefer the signed-in rider phone; otherwise use the emergency/contact mobile from the join form.
+  const mobile = digitsOf(phone) || digitsOf(String(input.emergencyPhone ?? ""));
+  if (!/^[6-9]\d{9}$/.test(mobile)) {
+    throw new ApiError("Add a valid 10-digit Indian mobile on the contact step, then submit again.", 400);
+  }
+  const plate = String(input.vehicleNo ?? "").toUpperCase().replace(/\s+/g, " ").trim();
+  const ifsc = String(input.ifsc ?? "").toUpperCase().trim();
+  if (!/^[A-Z]{2} ?[0-9]{1,2} ?[A-Z]{0,3} ?[0-9]{3,4}$/.test(plate)) {
+    throw new ApiError("Use a number plate like TS09 AB 2146.", 400);
+  }
+  if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) {
+    throw new ApiError("Check the IFSC code. The 5th character must be 0 (example SBIN0001234).", 400);
+  }
+  if (!/^\d{9,18}$/.test(account) || !/^\d{4}$/.test(account.slice(-4))) {
+    throw new ApiError("Check the bank account number and try again.", 400);
+  }
   const row = {
     user_id: userId,
     captain_code: `R${randomInt(100000, 999999)}`,
-    phone: digitsOf(phone),
+    phone: mobile,
     name: String(input.name ?? "").trim(),
     dob: input.dob,
     gender: input.gender,
     email: input.email || null,
     city: input.city,
     vehicle: input.vehicle,
-    vehicle_no: String(input.vehicleNo ?? "").toUpperCase(),
+    vehicle_no: plate,
     vehicle_model: input.vehicleModel,
     vehicle_color: input.vehicleColor,
     vehicle_year: String(input.vehicleYear ?? ""),
     bank_holder: input.bankHolder,
     bank_last4: account.slice(-4),
-    ifsc: String(input.ifsc ?? "").toUpperCase(),
+    ifsc,
     upi: input.upi || null,
     emergency_name: input.emergencyName,
-    emergency_phone: input.emergencyPhone,
+    emergency_phone: digitsOf(String(input.emergencyPhone ?? "")) || mobile,
     status: "review",
     service: "taxi",
     review_since: new Date().toISOString(),
   };
   const inserted = await db().from("captains").insert(row).select("*").single();
-  if (inserted.error || !inserted.data) throw new ApiError("Registration could not be saved. Check the details and try again.", 400);
+  if (inserted.error || !inserted.data) {
+    const detail = String(inserted.error?.message ?? "");
+    if (/captains_phone|phone.*unique|duplicate key.*phone/i.test(detail)) {
+      throw new ApiError("That mobile is already registered on another captain account.", 400);
+    }
+    if (/vehicle_no|duplicate key.*vehicle/i.test(detail)) {
+      throw new ApiError("That number plate is already registered.", 400);
+    }
+    if (/gender|check constraint/i.test(detail)) {
+      throw new ApiError("Choose Male, Female, or Other for gender.", 400);
+    }
+    throw new ApiError("Registration could not be saved. Check the details and try again.", 400);
+  }
   return { captain: inserted.data };
 }
 
