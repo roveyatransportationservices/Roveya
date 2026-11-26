@@ -165,13 +165,27 @@ export async function deliverReceiptEmail(input: {
   alreadySent: boolean;
   apiKey?: string;
   from?: string;
+  endpoint?: string;
   fetchImpl?: (url: string, init: { method: string; headers: Record<string, string>; body: string }) => Promise<{ ok: boolean }>;
+  sendImpl?: (mail: { to: string; subject: string; html: string }) => Promise<{ ok: boolean }>;
 }) {
   const decision = receiptEmailDecision(input);
-  if (decision !== "send" || loadtestBlocks("https://api.resend.com/emails")) return { status: decision === "send" ? "hold" as const : decision, sent: false as const };
+  const endpoint = input.endpoint ?? "https://api.resend.com/emails";
+  if (decision !== "send" || loadtestBlocks(endpoint)) return { status: decision === "send" ? "hold" as const : decision, sent: false as const };
+  if (!input.to) return { status: "hold" as const, sent: false as const };
+
+  if (input.sendImpl) {
+    const response = await input.sendImpl({
+      to: input.to,
+      subject: `ROVEYA receipt ${input.receipt.receiptNo}`,
+      html: receiptHtml(input.receipt),
+    });
+    return { status: response.ok ? "accepted" as const : "failed" as const, sent: response.ok };
+  }
+
   const send = input.fetchImpl;
-  if (!send || !input.apiKey || !input.from || !input.to) return { status: "hold" as const, sent: false as const };
-  const response = await send("https://api.resend.com/emails", {
+  if (!send || !input.apiKey || !input.from) return { status: "hold" as const, sent: false as const };
+  const response = await send(endpoint, {
     method: "POST",
     headers: { Authorization: `Bearer ${input.apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({ from: input.from, to: input.to, subject: `ROVEYA receipt ${input.receipt.receiptNo}`, html: receiptHtml(input.receipt) }),

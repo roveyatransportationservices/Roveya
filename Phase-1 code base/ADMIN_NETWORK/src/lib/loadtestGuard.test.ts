@@ -29,5 +29,7 @@ test("load-test mode allows only the local API and database ports", () => {
   assert.equal(loadtestBlocks("https://router.project-osrm.org/route/v1/driving/0,0;1,1"), true);
   assert.equal(loadtestBlocks("https://nominatim.openstreetmap.org/search"), true);
   assert.equal(loadtestBlocks("https://api.resend.com/emails"), true);
+  assert.equal(loadtestBlocks("https://api.brevo.com/v3/smtp/email"), true);
+  assert.match(loadtestIsolationError({ ...local, BREVO_API_KEY: "xkeysib-test" }) ?? "", /provider/);
   delete process.env.ROVEYA_LOADTEST;
 });

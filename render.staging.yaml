@@ -27,9 +27,18 @@ services:
         value: https://pqnfipleuztivnrsyvkd.supabase.co
       - key: SUPABASE_SECRET_KEY
         sync: false
+      # Staging field test: set EMAIL_PROVIDER=brevo after Brevo sender + API key exist.
+      - key: EMAIL_PROVIDER
+        sync: false
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_FROM_EMAIL
+        sync: false
+      - key: BREVO_FROM_NAME
         sync: false
       - key: SMS_PROVIDER
         value: 2factor

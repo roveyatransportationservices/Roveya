@@ -1,3 +1,4 @@
+import { emailTransportEndpoint, sendTransactionalEmail } from "../emailTransport";
 import { deliverReceiptEmail, type ServiceReceipt } from "../receipt";
 import { emailProviderReady } from "../providerPlan";
 import { db } from "./db";
@@ -16,13 +17,14 @@ async function markReceiptEmail(refId: string, status: "held" | "accepted" | "fa
 
 /**
  * Stores already happened in rememberReceipt (email_status starts as not_sent).
- * This path attempts Resend only when configured and founder-approved.
+ * Uses EMAIL_PROVIDER (Brevo or Resend) when configured and founder-approved.
  * Failure never throws into the ride completion path.
  */
 export async function dispatchCityReceiptEmail(input: {
   riderId: string;
   receipt: ServiceReceipt;
   fetchImpl?: (url: string, init: { method: string; headers: Record<string, string>; body: string }) => Promise<{ ok: boolean }>;
+  sendImpl?: (mail: { to: string; subject: string; html: string }) => Promise<{ ok: boolean }>;
 }) {
   try {
     const [{ data: rider }, { data: existing }, approved] = await Promise.all([
@@ -32,9 +34,7 @@ export async function dispatchCityReceiptEmail(input: {
     ]);
     const alreadySent = existing?.email_status === "accepted";
     const to = String(rider?.email ?? "").trim();
-    const key = process.env.RESEND_API_KEY;
-    const from = process.env.RESEND_FROM_EMAIL;
-    const configured = emailProviderReady({ key, from });
+    const configured = emailProviderReady();
     if (!to) {
       await markReceiptEmail(input.receipt.refId, "held");
       return { status: "hold" as const, sent: false as const, reason: "no_email" as const };
@@ -45,14 +45,18 @@ export async function dispatchCityReceiptEmail(input: {
       configured,
       approved,
       alreadySent,
-      apiKey: key,
-      from,
-      fetchImpl:
-        input.fetchImpl ??
-        (async (url, init) => {
-          const response = await fetch(url, { ...init, signal: AbortSignal.timeout(12_000) }).catch(() => null);
-          return { ok: Boolean(response && response.ok) };
-        }),
+      endpoint: emailTransportEndpoint(),
+      sendImpl:
+        input.sendImpl ??
+        (input.fetchImpl
+          ? undefined
+          : async (mail) => {
+              const sent = await sendTransactionalEmail(mail);
+              return { ok: sent.ok };
+            }),
+      fetchImpl: input.fetchImpl,
+      apiKey: process.env.RESEND_API_KEY,
+      from: process.env.RESEND_FROM_EMAIL,
     });
     const status = result.status === "skip" ? "accepted" : result.status === "hold" ? "held" : result.status === "accepted" ? "accepted" : "failed";
     await markReceiptEmail(input.receipt.refId, status === "accepted" ? "accepted" : status === "held" ? "held" : "failed");

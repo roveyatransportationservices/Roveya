@@ -1,7 +1,7 @@
 // Refuses a load-test process that can reach anything except the local stack.
 // Normal servers do not set ROVEYA_LOADTEST, so every check stays inactive.
 
-const PROVIDERS = ["RESEND_API_KEY", "RESEND_FROM_EMAIL", "SMS_API_KEY", "SMS_PROVIDER", "SMS_SENDER_ID", "SMS_TEMPLATE_ID", "EXPO_ACCESS_TOKEN", "RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET", "NOMINATIM_URL"];
+const PROVIDERS = ["RESEND_API_KEY", "RESEND_FROM_EMAIL", "BREVO_API_KEY", "BREVO_FROM_EMAIL", "EMAIL_PROVIDER", "SMS_API_KEY", "SMS_PROVIDER", "SMS_SENDER_ID", "SMS_TEMPLATE_ID", "EXPO_ACCESS_TOKEN", "RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET", "NOMINATIM_URL"];
 const PROJECTS = ["gecz", "pcyk", "pqnfipleuztivnrsyvkd"];
 
 const ALLOWED_HTTP = new Set(["http://127.0.0.1:54321", "http://localhost:54321"]);

@@ -8,6 +8,11 @@ test("email OTP stays off until both Resend values exist", () => {
   assert.equal(emailProviderReady({ key: "test-key", from: "ROVEYA <codes@example.com>" }), true);
 });
 
+test("email OTP with EMAIL_PROVIDER=brevo needs Brevo key and from", () => {
+  assert.equal(emailProviderReady({ EMAIL_PROVIDER: "brevo", BREVO_API_KEY: "k", BREVO_FROM_EMAIL: "a@b.com" }), true);
+  assert.equal(emailProviderReady({ EMAIL_PROVIDER: "brevo", RESEND_API_KEY: "re", RESEND_FROM_EMAIL: "a@b.com" }), false);
+});
+
 test("a mocked provider status is accepted only on success", () => {
   assert.equal(emailAccepted(200), true);
   assert.equal(emailAccepted(403), false);

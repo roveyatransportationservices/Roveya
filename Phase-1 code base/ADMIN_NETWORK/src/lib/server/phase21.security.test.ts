@@ -112,10 +112,13 @@ test("one user cannot claim another user's push token", () => {
 
 test("sign-in does not accept a built-in demo code", () => {
   const delivery = readFileSync(new URL("./otpDelivery.ts", import.meta.url), "utf8");
+  const transport = readFileSync(new URL("../emailTransport.ts", import.meta.url), "utf8");
   assert.doesNotMatch(delivery, /DEMO_CODE/);
   assert.doesNotMatch(delivery, /return true/);
+  assert.doesNotMatch(transport, /DEMO_CODE/);
   assert.match(delivery, /Email sign-in is not switched on yet/);
   assert.match(delivery, /Text message sign-in is not switched on yet/);
+  assert.match(delivery, /sendTransactionalEmail/);
 });
 
 test("subscription mode does not take a commission, and direct UPI is excluded from wallet credit", () => {

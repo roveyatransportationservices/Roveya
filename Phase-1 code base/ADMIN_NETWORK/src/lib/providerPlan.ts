@@ -1,5 +1,23 @@
-export function emailProviderReady(env: { key?: string; from?: string }) {
-  return Boolean(env.key?.trim() && env.from?.trim());
+import { emailTransportReady, normalizeEmailProvider, resolveEmailConfig } from "./emailTransport";
+
+export { normalizeEmailProvider, resolveEmailConfig, emailTransportReady };
+
+/** True when the active EMAIL_PROVIDER has both key and from configured. */
+export function emailProviderReady(env?: {
+  EMAIL_PROVIDER?: string;
+  RESEND_API_KEY?: string;
+  RESEND_FROM_EMAIL?: string;
+  BREVO_API_KEY?: string;
+  BREVO_FROM_EMAIL?: string;
+  BREVO_FROM_NAME?: string;
+  /** Legacy single-provider shape used by older call sites / tests. */
+  key?: string;
+  from?: string;
+}) {
+  if (env && ("key" in env || "from" in env) && !("EMAIL_PROVIDER" in env) && !("RESEND_API_KEY" in env) && !("BREVO_API_KEY" in env)) {
+    return Boolean(env.key?.trim() && env.from?.trim());
+  }
+  return emailTransportReady(env);
 }
 
 export function emailAccepted(status: number) {

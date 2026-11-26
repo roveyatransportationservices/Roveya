@@ -1,4 +1,5 @@
 import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
+import { emailTransportEndpoint, sendTransactionalEmail } from "../emailTransport";
 import { loadtestBlocks } from "../loadtestGuard";
 import { emailAccepted, emailProviderReady, indiaMobile, otpDecision, OTP_MAX_TRIES, OTP_TTL_MS, resendBlocked, smsAccepted, smsProviderReady } from "../providerPlan";
 import { ApiError } from "./api";
@@ -60,22 +61,15 @@ function emailHtml(code: string) {
 }
 
 async function sendEmail(to: string, code: string) {
-  const key = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL;
-  if (!emailProviderReady({ key, from })) throw new ApiError("Email sign-in is not switched on yet.", 503);
-  if (loadtestBlocks("https://api.resend.com/emails")) throw new ApiError("Email sign-in is not switched on yet.", 503);
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      from,
-      to: [to],
-      subject: "Your ROVEYA sign-in code",
-      html: emailHtml(code),
-    }),
-    signal: AbortSignal.timeout(12_000),
-  }).catch(() => null);
-  if (!response || !emailAccepted(response.status)) throw new ApiError("The email could not be sent. Try again in a moment.", 503);
+  if (!emailProviderReady()) throw new ApiError("Email sign-in is not switched on yet.", 503);
+  const endpoint = emailTransportEndpoint();
+  if (loadtestBlocks(endpoint)) throw new ApiError("Email sign-in is not switched on yet.", 503);
+  const result = await sendTransactionalEmail({
+    to,
+    subject: "Your ROVEYA sign-in code",
+    html: emailHtml(code),
+  });
+  if (!result.ok || !emailAccepted(result.status)) throw new ApiError("The email could not be sent. Try again in a moment.", 503);
 }
 
 // 2Factor OTP route. The template name and sender ID must already be approved on a DLT portal.
