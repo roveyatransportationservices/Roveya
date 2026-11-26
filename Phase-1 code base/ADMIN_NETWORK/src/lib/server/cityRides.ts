@@ -312,9 +312,10 @@ export async function renameRider(userId: string, name: string) {
   return { ok: true };
 }
 
-const line = (pickup: Place, drop: Place) => [
-  [pickup.latitude, pickup.longitude],
-  [drop.latitude, drop.longitude],
+// GeoJSON order [lng, lat] — same as /maps/route and the mobile RouteMap helpers.
+const line = (pickup: Place, drop: Place): [number, number][] => [
+  [pickup.longitude, pickup.latitude],
+  [drop.longitude, drop.latitude],
 ];
 export async function closeAccount(userId: string) {
   const open = await db().from("trips").select("id").or(`rider_id.eq.${userId},captain_id.eq.${userId}`).in("status", ["searching", "assigned", "arrived", "on_trip"]).limit(1);
@@ -359,8 +360,15 @@ export async function quoteRide(riderId: string, pickup: Place, drop: Place) {
   const started = Date.now();
   let bike: Awaited<ReturnType<typeof pricePair>>[0];
   let auto: Awaited<ReturnType<typeof pricePair>>[1];
+  let routed: Awaited<ReturnType<typeof road>> | null = null;
   try {
-    [bike, auto] = await pricePair(pickup, drop);
+    const priced = await Promise.all([
+      pricePair(pickup, drop),
+      road(`${pickup.latitude},${pickup.longitude}`, `${drop.latitude},${drop.longitude}`).catch(() => null),
+    ] as const);
+    bike = priced[0][0];
+    auto = priced[0][1];
+    routed = priced[1];
   } catch (error) {
     observe("quote", { ms: Date.now() - started, outcome: "error", status: error instanceof ApiError ? error.status : 500 });
     throw error;
@@ -372,7 +380,7 @@ export async function quoteRide(riderId: string, pickup: Place, drop: Place) {
     expiresAt: new Date(exp).toISOString(),
     distanceKm: bike.km,
     durationMin: bike.etaMin,
-    route: line(pickup, drop),
+    route: routed?.coords?.length ? routed.coords : line(pickup, drop),
     pickupName: pickup.name,
     options: [
       { vehicle: "bike", fare: bike.farePaise / 100, fullFare: bike.farePaise / 100, discount: 0, etaMin: bike.etaMin },
@@ -1093,7 +1101,8 @@ async function offerCard(offer: Row, trip: Row) {
     pickup: place(trip, "pickup"),
     drop: place(trip, "drop"),
     pickupKm: Number(offer.pickup_km ?? 0),
-    pickupMin: Math.max(1, Math.round(Number(offer.pickup_km ?? 1) * 3)),
+    // Straight-line km → road-ish ETA at ~16–18 km/h (was *3 / ~20 km/h and too optimistic).
+    pickupMin: Math.max(2, Math.round(Number(offer.pickup_km ?? 1) * 1.3 / 0.28)),
     tripKm: Number(trip.distance_km),
     tripMin: Number(trip.eta_min),
     fare,
@@ -1376,13 +1385,19 @@ export async function road(from: string, to: string) {
   const [flat, flng] = from.split(",").map(Number);
   const [tlat, tlng] = to.split(",").map(Number);
   if (![flat, flng, tlat, tlng].every(Number.isFinite)) throw new ApiError("That route could not be read.", 400);
+  const straight = kmBetween({ lat: flat, lng: flng }, { lat: tlat, lng: tlng });
+  const estimatedKm = Math.max(0.2, straight * 1.25);
+  const estimatedMin = Math.max(2, Math.round(estimatedKm / 0.28)); // ~17 km/h city pace
   const url = `https://router.project-osrm.org/route/v1/driving/${flng},${flat};${tlng},${tlat}?overview=full&geometries=geojson`;
   const response = loadtestBlocks(url) ? null : await fetch(url, { signal: AbortSignal.timeout(8000) }).catch(() => null);
   const data = (await response?.json().catch(() => null)) as { routes?: { distance: number; duration: number; geometry: { coordinates: [number, number][] } }[] } | null;
   const best = data?.routes?.[0];
-  if (!best) return { coords: [[flat, flng], [tlat, tlng]], km: kmBetween({ lat: flat, lng: flng }, { lat: tlat, lng: tlng }) * 1.25, minutes: 1 };
+  // Keep GeoJSON order [lng, lat] — mobile RouteMap / path helpers expect that.
+  if (!best) return { coords: [[flng, flat], [tlng, tlat]] as [number, number][], km: estimatedKm, minutes: estimatedMin };
   const step = Math.max(1, Math.floor(best.geometry.coordinates.length / 600));
-  const coords = best.geometry.coordinates.filter((_, index, all) => index % step === 0 || index === all.length - 1).map(([lng, lat]) => [lat, lng] as [number, number]);
+  const coords = best.geometry.coordinates
+    .filter((_, index, all) => index % step === 0 || index === all.length - 1)
+    .map(([lng, lat]) => [lng, lat] as [number, number]);
   return { coords, km: best.distance / 1000, minutes: Math.max(1, Math.round(best.duration / 60)) };
 }
 

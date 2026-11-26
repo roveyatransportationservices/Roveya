@@ -37,13 +37,15 @@ export async function searchAddresses(query: string, near: { latitude: number; l
     const result = await api<{ places: ServerPlace[] }>(`/maps/search?${params.toString()}`);
     return signal?.aborted ? [] : result.places.map(fromServer);
   }
-  const span = 0.6;
+  const span = 0.22;
   const params = new URLSearchParams({
     q: query,
     format: "jsonv2",
     countrycodes: "in",
     limit: "8",
     viewbox: `${near.longitude - span},${near.latitude + span},${near.longitude + span},${near.latitude - span}`,
+    bounded: "1",
+    dedupe: "1",
     "accept-language": "en",
   });
   const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
@@ -70,4 +72,13 @@ export async function searchAddresses(query: string, near: { latitude: number; l
     seen.add(key);
     return true;
   });
+}
+
+export async function nearbyAddresses(near: { latitude: number; longitude: number }, signal?: AbortSignal): Promise<Place[]> {
+  if (live) {
+    const params = new URLSearchParams({ lat: String(near.latitude), lng: String(near.longitude) });
+    const result = await api<{ places: ServerPlace[] }>(`/maps/nearby?${params.toString()}`);
+    return signal?.aborted ? [] : result.places.map(fromServer);
+  }
+  return searchAddresses("bus stand", near, signal);
 }

@@ -96,11 +96,16 @@ export function JobScreen({ navigation }: NativeStackScreenProps<CaptainStack, "
     const from = me ?? home;
     roadRoute(from, job.pickup, controller.signal).then((road) => {
       if (controller.signal.aborted) return;
-      setToPickup(road ? { coords: road.coords, minutes: Math.max(2, job.pickupMin), km: road.km } : { coords: straight(from, job.pickup), minutes: job.pickupMin, km: job.pickupKm });
+      // Prefer live road duration over the offer's straight-line estimate.
+      setToPickup(road
+        ? { coords: road.coords, minutes: Math.max(1, Math.round(road.minutes)), km: road.km }
+        : { coords: straight(from, job.pickup), minutes: Math.max(2, job.pickupMin), km: job.pickupKm });
     });
     roadRoute(job.pickup, job.drop, controller.signal).then((road) => {
       if (controller.signal.aborted) return;
-      setRide(road ? { coords: road.coords, minutes: Math.max(3, Math.round(road.minutes)), km: road.km } : { coords: straight(job.pickup, job.drop), minutes: job.tripMin, km: job.tripKm });
+      setRide(road
+        ? { coords: road.coords, minutes: Math.max(1, Math.round(road.minutes)), km: road.km }
+        : { coords: straight(job.pickup, job.drop), minutes: Math.max(3, job.tripMin), km: job.tripKm });
     });
     return () => controller.abort();
   }, [job?.id, located]);

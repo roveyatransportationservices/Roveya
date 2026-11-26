@@ -66,6 +66,7 @@ import {
   confirmDocument,
   createTicket,
   listTickets,
+  nearbyPlaces,
   prepareDocument,
   readDayBook,
   readPlace,
@@ -146,6 +147,10 @@ async function handle(req: Request, path: string[]) {
   if (req.method === "GET" && key === "maps/search") {
     await allow("maps", address, 60, 60, "Too many place searches. Wait a minute and try again.");
     return json(await searchPlaces(url.searchParams.get("q") ?? "", { latitude: Number(url.searchParams.get("lat")), longitude: Number(url.searchParams.get("lng")) }));
+  }
+  if (req.method === "GET" && key === "maps/nearby") {
+    await allow("maps", address, 40, 60, "Too many place searches. Wait a minute and try again.");
+    return json(await nearbyPlaces({ latitude: Number(url.searchParams.get("lat")), longitude: Number(url.searchParams.get("lng")) }));
   }
   const placeId = key.match(/^maps\/place\/(.+)$/);
   if (req.method === "GET" && placeId) {

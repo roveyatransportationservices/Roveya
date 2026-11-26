@@ -49,7 +49,15 @@ export function LiveTrip({ trip, onCancel, onDone, onSafety }: { trip: ActiveTri
   const captain = trip.captain;
   const first = captain.name.split(" ")[0];
 
-  const start = useMemo(() => ({ latitude: trip.pickup.latitude + 0.011, longitude: trip.pickup.longitude - 0.008 }), [trip.pickup]);
+  const fallbackStart = useMemo(() => ({ latitude: trip.pickup.latitude + 0.011, longitude: trip.pickup.longitude - 0.008 }), [trip.pickup.latitude, trip.pickup.longitude]);
+  // Snap captain GPS to ~100 m so we do not re-hit OSRM on every 3s poll.
+  const captainStart = useMemo(() => {
+    if (!trip.captainAt) return fallbackStart;
+    return {
+      latitude: Math.round(trip.captainAt.latitude * 1000) / 1000,
+      longitude: Math.round(trip.captainAt.longitude * 1000) / 1000,
+    };
+  }, [trip.captainAt?.latitude, trip.captainAt?.longitude, fallbackStart]);
   const [approach, setApproach] = useState<Leg | null>(null);
   const [ride, setRide] = useState<Leg | null>(null);
   const [prog, setProg] = useState({ leg: status, p: 0 });
@@ -62,22 +70,28 @@ export function LiveTrip({ trip, onCancel, onDone, onSafety }: { trip: ActiveTri
   const [payNote, setPayNote] = useState("");
   const [tags, setTags] = useState<string[]>([]);
 
+  // Approach polyline from the live captain pin (not a fake offset), so the passenger sees the real route in.
   useEffect(() => {
     const controller = new AbortController();
-    roadRoute(start, trip.pickup, controller.signal).then((road) => {
+    roadRoute(captainStart, trip.pickup, controller.signal).then((road) => {
       if (controller.signal.aborted) return;
       setApproach(road
-        ? { coords: road.coords, minutes: Math.max(4, Math.round(road.minutes * 1.5)), km: road.km }
-        : { coords: straight(start, trip.pickup), minutes: 5, km: distanceKm(start, trip.pickup) * 1.3 });
+        ? { coords: road.coords, minutes: Math.max(1, Math.round(road.minutes)), km: road.km }
+        : { coords: straight(captainStart, trip.pickup), minutes: Math.max(2, Math.round(distanceKm(captainStart, trip.pickup) * 1.3 / 0.28)), km: distanceKm(captainStart, trip.pickup) * 1.3 });
     });
+    return () => controller.abort();
+  }, [captainStart.latitude, captainStart.longitude, trip.pickup.latitude, trip.pickup.longitude]);
+
+  useEffect(() => {
+    const controller = new AbortController();
     roadRoute(trip.pickup, trip.drop, controller.signal).then((road) => {
       if (controller.signal.aborted) return;
       setRide(road
-        ? { coords: road.coords, minutes: Math.max(3, Math.round(road.minutes)), km: road.km }
+        ? { coords: road.coords, minutes: Math.max(1, Math.round(road.minutes)), km: road.km }
         : { coords: straight(trip.pickup, trip.drop), minutes: Math.max(3, trip.etaMin), km: trip.distanceKm });
     });
     return () => controller.abort();
-  }, [start, trip.pickup, trip.drop]);
+  }, [trip.pickup.latitude, trip.pickup.longitude, trip.drop.latitude, trip.drop.longitude, trip.etaMin, trip.distanceKm]);
 
   const leg = status === "assigned" ? approach : status === "onTrip" ? ride : null;
   const p = prog.leg === status ? prog.p : 0;
@@ -126,7 +140,7 @@ export function LiveTrip({ trip, onCancel, onDone, onSafety }: { trip: ActiveTri
     status === "onTrip" && ride ? alongPath(ride.coords, p) :
     status === "arrived" && atPickup ? atPickup :
     (status === "payment" || status === "rating") && ride ? alongPath(ride.coords, 1) :
-    { latitude: start.latitude, longitude: start.longitude, heading: 180, remaining: null };
+    { latitude: captainStart.latitude, longitude: captainStart.longitude, heading: 180, remaining: null };
   const spot = !simulated && trip.captainAt ? trip.captainAt : here;
   const pin: CaptainPin = { id: "captain", kind: trip.vehicle, latitude: spot.latitude, longitude: spot.longitude, heading: spot.heading };
 

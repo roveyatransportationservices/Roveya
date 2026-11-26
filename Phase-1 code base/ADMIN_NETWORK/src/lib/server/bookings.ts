@@ -31,7 +31,8 @@ const isPeak = (at = new Date()) => {
 
 const FARE_KEYS = ["fare_bike_base", "fare_bike_per_km", "fare_bike_min", "fare_auto_base", "fare_auto_per_km", "fare_auto_min", "fare_cab_base", "fare_cab_per_km", "fare_cab_min", "peak_bonus_paise"];
 let fareCache: { at: number; values: Map<string, number> } | null = null;
-const routeFlights = new Map<string, Promise<number | null>>();
+type DrivenRoute = { km: number; minutes: number };
+const routeFlights = new Map<string, Promise<DrivenRoute | null>>();
 
 async function settings() {
   if (fareCache && Date.now() - fareCache.at < 5_000) return fareCache.values;
@@ -41,38 +42,41 @@ async function settings() {
   return values;
 }
 
-async function loadDrivenKm(pickup: Place, drop: Place) {
+async function loadDrivenRoute(pickup: Place, drop: Place): Promise<DrivenRoute | null> {
   const url = `https://router.project-osrm.org/route/v1/driving/${pickup.longitude},${pickup.latitude};${drop.longitude},${drop.latitude}?overview=false`;
   if (loadtestBlocks(url)) return null;
   const response = await fetch(url, { headers: { "user-agent": "ROVEYA/1.0 (city fare)" }, signal: AbortSignal.timeout(3500) }).catch(() => null);
   if (!response?.ok) return null;
-  const data = (await response.json().catch(() => null)) as { routes?: { distance?: number }[] } | null;
+  const data = (await response.json().catch(() => null)) as { routes?: { distance?: number; duration?: number }[] } | null;
   const meters = data?.routes?.[0]?.distance;
+  const seconds = data?.routes?.[0]?.duration;
   if (!Number.isFinite(meters) || !meters || meters < 100) return null;
-  return meters / 1000;
+  const minutes = Number.isFinite(seconds) && seconds && seconds > 0 ? Math.max(2, Math.round(seconds / 60)) : null;
+  return { km: meters / 1000, minutes: minutes ?? Math.max(4, Math.round((meters / 1000) * MINUTES_PER_KM.bike + 3)) };
 }
 
-async function drivenKm(pickup: Place, drop: Place) {
+async function drivenRoute(pickup: Place, drop: Place) {
   const key = [pickup.latitude, pickup.longitude, drop.latitude, drop.longitude].map((value) => value.toFixed(4)).join(",");
   const existing = routeFlights.get(key);
   if (existing) return existing;
-  const flight = loadDrivenKm(pickup, drop).finally(() => routeFlights.delete(key));
+  const flight = loadDrivenRoute(pickup, drop).finally(() => routeFlights.delete(key));
   routeFlights.set(key, flight);
   return flight;
 }
 
-function finishPrice(vehicle: CityVehicle, values: Map<string, number>, driven: number | null, pickup: Place, drop: Place) {
+function finishPrice(vehicle: CityVehicle, values: Map<string, number>, driven: DrivenRoute | null, pickup: Place, drop: Place) {
   const read = (key: string, fallback: number) => {
     const value = values.get(key);
     return value !== undefined && Number.isFinite(value) && value > 0 ? value : fallback;
   };
   const rate = DEFAULT_RATES[vehicle];
-  const km = Math.max(1, Math.round((driven ?? straightKm(pickup, drop) * 1.25) * 100) / 100);
+  const km = Math.max(1, Math.round((driven?.km ?? straightKm(pickup, drop) * 1.25) * 100) / 100);
   if (km > 300) throw new ApiError("That drop is too far for a city ride. Book Carpool Travels instead.", 400);
   const rupees = Math.max(read(`fare_${vehicle}_min`, rate.min), Math.round(read(`fare_${vehicle}_base`, rate.base) + read(`fare_${vehicle}_per_km`, rate.perKm) * km));
+  const paced = Math.max(4, Math.round((driven?.minutes ?? km * MINUTES_PER_KM[vehicle] + 3) * (vehicle === "auto" ? 1.15 : vehicle === "cab" ? 1.25 : 1)));
   return {
     km,
-    etaMin: Math.max(4, Math.round(km * MINUTES_PER_KM[vehicle] + 3)),
+    etaMin: paced,
     farePaise: rupees * 100,
     bonusPaise: isPeak() ? read("peak_bonus_paise", 0) : 0,
     source: driven ? "road" as const : "estimate" as const,
@@ -80,12 +84,12 @@ function finishPrice(vehicle: CityVehicle, values: Map<string, number>, driven: 
 }
 
 export async function priceRide(vehicle: CityVehicle, pickup: Place, drop: Place) {
-  const [values, driven] = await Promise.all([settings(), drivenKm(pickup, drop)]);
+  const [values, driven] = await Promise.all([settings(), drivenRoute(pickup, drop)]);
   return finishPrice(vehicle, values, driven, pickup, drop);
 }
 
 export async function pricePair(pickup: Place, drop: Place) {
-  const [values, driven] = await Promise.all([settings(), drivenKm(pickup, drop)]);
+  const [values, driven] = await Promise.all([settings(), drivenRoute(pickup, drop)]);
   return [finishPrice("bike", values, driven, pickup, drop), finishPrice("auto", values, driven, pickup, drop)] as const;
 }
 

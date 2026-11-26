@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Location from "expo-location";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { fallbackHere, places } from "../data";
-import { hasPoint, resolvePlace, searchAddresses } from "../geocode";
+import { hasPoint, nearbyAddresses, resolvePlace, searchAddresses } from "../geocode";
 import { distanceKm } from "../geo";
 import { useStore } from "../store";
 import { colors, type } from "../theme";
@@ -17,6 +17,8 @@ export function SearchScreen({ route, navigation }: NativeStackScreenProps<Custo
   const insets = useSafeAreaInsets();
   const isPickup = route.params.target === "pickup";
   const pickup = store.pickup ?? fallbackHere;
+  const [near, setNear] = useState(pickup);
+  const [nearby, setNearby] = useState<Place[]>([]);
   const [query, setQuery] = useState("");
   const [found, setFound] = useState<Place[]>([]);
   const [searching, setSearching] = useState(false);
@@ -25,18 +27,44 @@ export function SearchScreen({ route, navigation }: NativeStackScreenProps<Custo
   const needle = query.trim();
   const recent = isPickup ? store.recentPickups : store.recentDrops;
 
+  // Bias OSM results to the phone GPS (not Hyderabad demo defaults) for Madhira / field tests.
   useEffect(() => {
-    if (needle.length < 3) {
+    let cancelled = false;
+    void Location.getCurrentPositionAsync({})
+      .then((position) => {
+        if (cancelled) return;
+        const spot = { latitude: position.coords.latitude, longitude: position.coords.longitude };
+        setNear(spot);
+        return nearbyAddresses(spot).then((rows) => {
+          if (!cancelled) setNearby(rows);
+        });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        void nearbyAddresses(pickup).then((rows) => {
+          if (!cancelled) setNearby(rows);
+        });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (needle.length < 2) {
       setFound([]);
       setSearching(false);
       return;
     }
-    const local = places.filter((place) => `${place.name} ${place.subtitle}`.toLowerCase().includes(needle.toLowerCase()));
+    const local = places
+      .filter((place) => `${place.name} ${place.subtitle}`.toLowerCase().includes(needle.toLowerCase()))
+      .filter((place) => distanceKm(near, place) < 80)
+      .sort((a, b) => distanceKm(near, a) - distanceKm(near, b));
     setFound(local);
     setSearching(true);
     const controller = new AbortController();
     const timer = setTimeout(() => {
-      searchAddresses(needle, pickup, controller.signal)
+      searchAddresses(needle, near, controller.signal)
         .then((remote) => {
           const names = new Set(local.map((place) => place.name.toLowerCase()));
           setFound([...local, ...remote.filter((place) => !names.has(place.name.toLowerCase()))]);
@@ -50,7 +78,7 @@ export function SearchScreen({ route, navigation }: NativeStackScreenProps<Custo
       clearTimeout(timer);
       controller.abort();
     };
-  }, [needle]);
+  }, [needle, near.latitude, near.longitude]);
 
   const [resolving, setResolving] = useState(false);
   const choose = async (picked: Place) => {
@@ -75,7 +103,7 @@ export function SearchScreen({ route, navigation }: NativeStackScreenProps<Custo
     store.rememberDrop(place);
     navigation.navigate("Options", { drop: place });
   };
-  const kmTo = (place: Place) => (hasPoint(place) ? distanceKm(pickup, place) : undefined);
+  const kmTo = (place: Place) => (hasPoint(place) ? distanceKm(near, place) : undefined);
 
   const locate = async () => {
     setLocating(true);
@@ -96,7 +124,7 @@ export function SearchScreen({ route, navigation }: NativeStackScreenProps<Custo
     }
   };
 
-  const list = needle.length >= 3 ? found : [];
+  const list = needle.length >= 2 ? found : [];
   const saved = [
     store.home ? { place: store.home, label: "Home", icon: "home-outline" as const } : null,
     store.work ? { place: store.work, label: "Work", icon: "briefcase-outline" as const } : null,
@@ -170,8 +198,19 @@ export function SearchScreen({ route, navigation }: NativeStackScreenProps<Custo
           </>
         ) : null}
 
+        {!needle && nearby.length ? (
+          <>
+            <Text style={styles.section}>NEAR YOU</Text>
+            <View style={styles.card}>
+              {nearby.map((place, index) => (
+                <PlaceRow key={place.id} place={place} icon="navigate-outline" km={kmTo(place)} last={index === nearby.length - 1} onPress={() => void choose(place)} />
+              ))}
+            </View>
+          </>
+        ) : null}
+
         {needle ? (
-          needle.length < 3 ? (
+          needle.length < 2 ? (
             <Text style={styles.hint}>Keep typing to search…</Text>
           ) : list.length ? (
             <View style={styles.card}>

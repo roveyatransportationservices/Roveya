@@ -15,30 +15,85 @@ const kmBetween = (a: Spot, b: Spot) => {
   return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 };
 
+function nominatimBase() {
+  const custom = process.env.NOMINATIM_URL?.trim().replace(/\/$/, "");
+  return custom || "https://nominatim.openstreetmap.org";
+}
+
+function placeFromNominatim(row: { place_id: number; name?: string; display_name: string; lat: string; lon: string }, fallbackName: string) {
+  const parts = row.display_name.split(",").map((part) => part.trim()).filter(Boolean);
+  const name = row.name?.trim() || parts[0] || fallbackName;
+  const rest = parts.filter((part) => part !== name && part !== "India" && !/^\d{6}$/.test(part));
+  return { id: `osm-${row.place_id}`, name, subtitle: rest.slice(0, 3).join(", ") || "India", latitude: Number(row.lat), longitude: Number(row.lon) };
+}
+
 export async function searchPlaces(query: string, near: Spot) {
   const q = query.trim().slice(0, 80);
-  if (q.length < 3) return { places: [] };
-  const url = new URL("https://nominatim.openstreetmap.org/search");
+  if (q.length < 2) return { places: [] };
+  const url = new URL(`${nominatimBase()}/search`);
   url.searchParams.set("q", q);
   url.searchParams.set("format", "jsonv2");
   url.searchParams.set("countrycodes", "in");
-  url.searchParams.set("limit", "8");
+  url.searchParams.set("limit", "12");
+  url.searchParams.set("addressdetails", "0");
+  url.searchParams.set("dedupe", "1");
   url.searchParams.set("accept-language", "en");
-  if (Number.isFinite(near.latitude) && Number.isFinite(near.longitude)) {
-    url.searchParams.set("viewbox", `${near.longitude - 0.6},${near.latitude + 0.6},${near.longitude + 0.6},${near.latitude - 0.6}`);
+  const nearOk = Number.isFinite(near.latitude) && Number.isFinite(near.longitude);
+  if (nearOk) {
+    // ~25 km box around the passenger — keep results local (Madhira / Khammam field tests).
+    const span = 0.22;
+    url.searchParams.set("viewbox", `${near.longitude - span},${near.latitude + span},${near.longitude + span},${near.latitude - span}`);
+    url.searchParams.set("bounded", "1");
   }
   if (loadtestBlocks(url.toString())) return { places: [] };
   const response = await fetch(url, { headers: { Accept: "application/json", "User-Agent": "ROVEYA (roveyatransportationservices@gmail.com)" }, signal: AbortSignal.timeout(8000) }).catch(() => null);
   if (!response?.ok) return { places: [] };
   const rows = (await response.json()) as { place_id: number; name?: string; display_name: string; lat: string; lon: string }[];
-  return {
-    places: rows.map((row) => {
-      const parts = row.display_name.split(",").map((part) => part.trim()).filter(Boolean);
-      const name = row.name?.trim() || parts[0] || q;
-      const rest = parts.filter((part) => part !== name && part !== "India");
-      return { id: `osm-${row.place_id}`, name, subtitle: rest.slice(0, 3).join(", ") || "India", latitude: Number(row.lat), longitude: Number(row.lon) };
-    }),
-  };
+  const places = rows.map((row) => placeFromNominatim(row, q));
+  if (!nearOk) return { places: places.slice(0, 8) };
+  places.sort((a, b) => kmBetween(near, a) - kmBetween(near, b));
+  return { places: places.slice(0, 8) };
+}
+
+/** Reverse + nearby landmarks for the empty search state around GPS. */
+export async function nearbyPlaces(near: Spot) {
+  if (!Number.isFinite(near.latitude) || !Number.isFinite(near.longitude)) return { places: [] };
+  const reverseUrl = new URL(`${nominatimBase()}/reverse`);
+  reverseUrl.searchParams.set("lat", String(near.latitude));
+  reverseUrl.searchParams.set("lon", String(near.longitude));
+  reverseUrl.searchParams.set("format", "jsonv2");
+  reverseUrl.searchParams.set("zoom", "16");
+  reverseUrl.searchParams.set("accept-language", "en");
+  if (loadtestBlocks(reverseUrl.toString())) return { places: [] };
+
+  const headers = { Accept: "application/json", "User-Agent": "ROVEYA (roveyatransportationservices@gmail.com)" };
+  const reverse = await fetch(reverseUrl, { headers, signal: AbortSignal.timeout(8000) }).catch(() => null);
+  const here = (await reverse?.json().catch(() => null)) as { place_id?: number; name?: string; display_name?: string; lat?: string; lon?: string } | null;
+
+  const places: { id: string; name: string; subtitle: string; latitude: number; longitude: number }[] = [];
+  if (here?.lat && here?.lon && here.display_name) {
+    places.push(placeFromNominatim({
+      place_id: Number(here.place_id ?? 0),
+      name: here.name,
+      display_name: here.display_name,
+      lat: here.lat,
+      lon: here.lon,
+    }, "Current location"));
+  }
+
+  // Local POI-ish results: bus stand / station / hospital / market near the pin.
+  const terms = ["bus stand", "railway station", "hospital", "market"];
+  for (const term of terms) {
+    const found = await searchPlaces(term, near);
+    for (const place of found.places) {
+      if (places.some((row) => row.id === place.id || row.name === place.name)) continue;
+      if (kmBetween(near, place) > 8) continue;
+      places.push(place);
+      if (places.length >= 8) break;
+    }
+    if (places.length >= 8) break;
+  }
+  return { places: places.slice(0, 8) };
 }
 
 export async function readPlace(id: string) {
