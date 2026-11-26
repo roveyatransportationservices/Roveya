@@ -591,9 +591,12 @@ async function assignTrip(tripId: string, captainId: string) {
   const presence = await db().from("captain_presence").select("online,updated_at").eq("captain_id", captainId).maybeSingle();
   const seen = Date.parse(String(presence.data?.updated_at ?? ""));
   if (!presence.data?.online || !Number.isFinite(seen) || seen <= Date.now() - settings.gpsFreshSeconds * 1000) return false;
-  await renewOnlineDayFee(captainId, settings.gpsFreshSeconds);
-  const paid = await captainsPaidForIstDay([captainId]);
-  if (!paid.has(captainId)) return false;
+  // Staging field test: do not renew/charge day fee or block assignment when waived.
+  if (!dayFeeWaived()) {
+    await renewOnlineDayFee(captainId, settings.gpsFreshSeconds);
+    const paid = await captainsPaidForIstDay([captainId]);
+    if (!paid.has(captainId)) return false;
+  }
   const held = await db().from("trips").select("id").eq("captain_id", captainId).in("status", ["assigned", "arrived", "on_trip"]).neq("id", tripId).limit(1);
   if (held.data?.length) return false;
   const updated = await db().from("trips").update({ captain_id: captainId, status: "assigned", assigned_at: now }).eq("id", tripId).eq("status", "searching").is("captain_id", null).select("id,assigned_at").maybeSingle();
@@ -1030,7 +1033,8 @@ export async function moveCaptain(captainId: string, spot: { latitude: number; l
   const stale = !data?.updated_at || Date.now() - Date.parse(String(data.updated_at)) >= 15_000;
   if (!moved && !stale) return { ok: true };
   await db().from("captain_presence").update({ latitude: spot.latitude, longitude: spot.longitude, heading: spot.heading ?? 0, updated_at: new Date().toISOString() }).eq("captain_id", captainId);
-  if (data?.online) {
+  // Staging field test: skip renewal — unpaid captains must stay online for accept.
+  if (data?.online && !dayFeeWaived()) {
     const settings = await loadDispatchSettings();
     const renewal = await renewOnlineDayFee(captainId, settings.gpsFreshSeconds);
     if (renewal && renewal.ok === false && renewal.reason === "insufficient_wallet_balance") {
@@ -1098,6 +1102,13 @@ export async function acceptOffer(captainId: string, offerId: string) {
         rechargeAvailable: false,
       });
     }
+  } else {
+    // Staging waive: heartbeat renewal may have forced offline earlier — heal presence so accept_city_offer can succeed.
+    const now = new Date().toISOString();
+    await db()
+      .from("captain_presence")
+      .update({ online: true, updated_at: now })
+      .eq("captain_id", captainId);
   }
   const rpc = await db().rpc("accept_city_offer", { p_offer: offerId, p_captain: captainId });
   const missing = Boolean(rpc.error && /could not find|schema cache|PGRST202|42883|does not exist/i.test(rpc.error.message));
