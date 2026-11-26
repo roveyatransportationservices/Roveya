@@ -106,6 +106,7 @@ export function DutyScreen({ navigation }: Props) {
 
   const offerRef = useRef(store.offer);
   offerRef.current = store.offer;
+  const acceptingRef = useRef(false);
 
   useEffect(() => {
     if (!live || !store.online || store.job) return;
@@ -121,7 +122,8 @@ export function DutyScreen({ navigation }: Props) {
         }
       }
       if (result.offer && result.offer.id !== offerRef.current?.offerId) store.pushOffer(orderFromServer(result.offer));
-      if (!result.offer && offerRef.current) store.reject("Withdrawn");
+      // Do not clear the local offer while Accept is in flight — the server has already moved it off "offered".
+      if (!result.offer && offerRef.current && !acceptingRef.current) store.reject("Withdrawn");
     };
     void pull();
     const timer = setInterval(() => void pull(), 3000);
@@ -175,12 +177,17 @@ export function DutyScreen({ navigation }: Props) {
     const offer = store.offer;
     if (!offer) return;
     if (!live || !offer.offerId) return store.accept();
+    acceptingRef.current = true;
     try {
       await api(`/captain/offers/${offer.offerId}/accept`, { method: "POST" });
-      store.accept();
+      const assigned = await api<{ trip: ServerTrip | null }>("/captain/trips/current").catch(() => null);
+      if (assigned?.trip) store.adoptJob(jobFromServer(assigned.trip));
+      else store.adoptJob({ ...offer, status: "toPickup" });
     } catch (error) {
       store.reject("Missed");
       setToast(error instanceof Error ? error.message : "This ride request is no longer available.");
+    } finally {
+      acceptingRef.current = false;
     }
   };
 

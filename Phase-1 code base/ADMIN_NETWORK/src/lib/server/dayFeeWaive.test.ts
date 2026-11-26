@@ -22,3 +22,11 @@ test("day fee waive skips heartbeat renewal and assignTrip fee gate", () => {
   assert.match(assignBlock, /renewOnlineDayFee/);
   assert.match(assignBlock, /captainsPaidForIstDay/);
 });
+
+test("day fee waive seeds SQL active_day marker so accept_city_offer can succeed", () => {
+  const source = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "cityRides.ts"), "utf8");
+  assert.match(source, /async function ensureStagingDayFeeMarker/);
+  assert.match(source, /source: "staging_waive"/);
+  assert.match(source, /await ensureStagingDayFeeMarker\(captainId, vehicle\)/);
+  assert.match(source, /accept_rpc_false_waived_fallback/);
+});

@@ -521,7 +521,8 @@ async function offerOneTrip(tripId: string) {
     }
     skipped = 1;
   }
-  const expires = new Date(Date.now() + settings.offerSeconds * 1000).toISOString();
+  const offerTtl = dayFeeWaived() ? Math.max(settings.offerSeconds, 45) : settings.offerSeconds;
+  const expires = new Date(Date.now() + offerTtl * 1000).toISOString();
   let placed = open.data?.length ?? 0;
   for (const captain of ranked.slice(skipped)) {
     if (placed >= 1) break;
@@ -530,7 +531,7 @@ async function offerOneTrip(tripId: string) {
     placed += 1;
     await remember(tripId, "offered", captain.id);
     const eventId = offerNoticeKey(String(inserted.data.id), "created");
-    if (eventId) void notify(captain.id, "captain", "New ride request", `${trip.code} is waiting for ${settings.offerSeconds} seconds.`, { tripId, offerId: inserted.data.id, kind: "offer_created", eventId }, "offers");
+    if (eventId) void notify(captain.id, "captain", "New ride request", `${trip.code} is waiting for ${offerTtl} seconds.`, { tripId, offerId: inserted.data.id, kind: "offer_created", eventId }, "offers");
   }
 }
 
@@ -889,6 +890,41 @@ export function dayFeeWaived(env?: { ROVEYA_SKIP_DAY_FEE?: string; NEXT_PUBLIC_S
   return flag === "staging" && url === "https://pqnfipleuztivnrsyvkd.supabase.co";
 }
 
+/**
+ * Live accept_city_offer SQL still calls captain_paid_active_day.
+ * Write a charged marker with no wallet debit so SQL accept can succeed under the staging waive.
+ * amountPaise must be > 0 (active_day_marker_is_charged rejects 0).
+ */
+async function ensureStagingDayFeeMarker(captainId: string, vehicle: string) {
+  const day = istBusinessDay();
+  const key = `active_day_${captainId}_${day}`;
+  const existing = await db().from("platform_settings").select("value").eq("key", key).maybeSingle();
+  if (existing.data?.value) {
+    try {
+      const parsed = JSON.parse(String(existing.data.value)) as { status?: string; amountPaise?: number };
+      if (parsed.status === "charged" && (parsed.amountPaise == null || Number(parsed.amountPaise) > 0)) return;
+    } catch {
+      /* rewrite invalid marker below */
+    }
+  }
+  const fee = dayFeePaise(vehicle) || 1000;
+  const value = JSON.stringify({
+    transactionId: key,
+    day,
+    vehicle,
+    amountPaise: fee,
+    status: "charged",
+    source: "staging_waive",
+  });
+  const now = new Date().toISOString();
+  if (existing.data) {
+    await db().from("platform_settings").update({ value, updated_at: now }).eq("key", key);
+  } else {
+    await db().from("platform_settings").insert({ key, value, updated_at: now });
+  }
+  observe("duty_day_fee_marker_waived", { vehicle, day });
+}
+
 function insufficientDutyError(balancePaise: number, feePaise: number, day: string) {
   const need = Math.max(0, feePaise - Math.max(0, balancePaise));
   throw new ApiError("Insufficient wallet balance. Recharge your wallet to go online.", 402, undefined, {
@@ -926,6 +962,7 @@ export async function setDuty(captainId: string, online: boolean, spot?: { latit
   // Staging field test: go online without charging the ₹10/₹12 day fee.
   if (dayFeeWaived()) {
     const now = new Date().toISOString();
+    await ensureStagingDayFeeMarker(captainId, vehicle);
     const { error } = await db().from("captain_presence").upsert(
       {
         captain_id: captainId,
@@ -1103,7 +1140,9 @@ export async function acceptOffer(captainId: string, offerId: string) {
       });
     }
   } else {
-    // Staging waive: heartbeat renewal may have forced offline earlier — heal presence so accept_city_offer can succeed.
+    // Staging waive: seed SQL day-fee marker + heal presence so accept_city_offer can succeed.
+    const { data: captain } = await db().from("captains").select("vehicle").eq("user_id", captainId).maybeSingle();
+    await ensureStagingDayFeeMarker(captainId, String(captain?.vehicle ?? "bike"));
     const now = new Date().toISOString();
     await db()
       .from("captain_presence")
@@ -1113,13 +1152,17 @@ export async function acceptOffer(captainId: string, offerId: string) {
   const rpc = await db().rpc("accept_city_offer", { p_offer: offerId, p_captain: captainId });
   const missing = Boolean(rpc.error && /could not find|schema cache|PGRST202|42883|does not exist/i.test(rpc.error.message));
   if (!missing) {
-    if (rpc.error || !rpc.data) throw new ApiError("This ride request is no longer available.", 409);
-    const offer = await db().from("trip_offers").select("trip_id").eq("id", offerId).maybeSingle();
-    if (offer.data?.trip_id) {
-      await remember(String(offer.data.trip_id), "assigned", captainId);
-      await tellRiderAssigned(String(offer.data.trip_id), captainId);
+    if (!rpc.error && rpc.data) {
+      const offer = await db().from("trip_offers").select("trip_id").eq("id", offerId).maybeSingle();
+      if (offer.data?.trip_id) {
+        await remember(String(offer.data.trip_id), "assigned", captainId);
+        await tellRiderAssigned(String(offer.data.trip_id), captainId);
+      }
+      return { ok: true };
     }
-    return { ok: true };
+    // Staging waive: if SQL still returns false, fall through to TS assign instead of hard-failing.
+    if (!dayFeeWaived()) throw new ApiError("This ride request is no longer available.", 409);
+    observe("accept_rpc_false_waived_fallback", {});
   }
   const { data } = await db().from("trip_offers").select("*").eq("id", offerId).maybeSingle();
   if (!data || data.captain_id !== captainId || data.status !== "offered" || Date.parse(String(data.expires_at)) <= Date.now()) {
