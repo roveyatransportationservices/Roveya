@@ -479,14 +479,18 @@ async function offerOneTrip(tripId: string) {
   const fresh = ((presence.data ?? []) as Row[]).filter((row) => !skip.has(String(row.captain_id)) && row.latitude != null && Date.parse(String(row.updated_at)) > Date.now() - settings.gpsFreshSeconds * 1000);
   if (!fresh.length) return;
   // Authoritative IST day fee: unpaid Captains cannot receive new offers (existing rides untouched).
-  let paidToday = await captainsPaidForIstDay(fresh.map((row) => String(row.captain_id)));
-  for (const row of fresh) {
-    const id = String(row.captain_id);
-    if (paidToday.has(id)) continue;
-    await renewOnlineDayFee(id, settings.gpsFreshSeconds);
+  // Staging field test can waive the fee so online captains stay matchable without wallet credit.
+  let feeEligible = fresh;
+  if (!dayFeeWaived()) {
+    let paidToday = await captainsPaidForIstDay(fresh.map((row) => String(row.captain_id)));
+    for (const row of fresh) {
+      const id = String(row.captain_id);
+      if (paidToday.has(id)) continue;
+      await renewOnlineDayFee(id, settings.gpsFreshSeconds);
+    }
+    paidToday = await captainsPaidForIstDay(fresh.map((row) => String(row.captain_id)));
+    feeEligible = fresh.filter((row) => paidToday.has(String(row.captain_id)));
   }
-  paidToday = await captainsPaidForIstDay(fresh.map((row) => String(row.captain_id)));
-  const feeEligible = fresh.filter((row) => paidToday.has(String(row.captain_id)));
   if (!feeEligible.length) return;
   const { data: captains } = await db().from("captains").select("user_id").in("user_id", feeEligible.map((row) => row.captain_id)).eq("status", "active");
   const active = new Set(((captains ?? []) as Row[]).map((row) => String(row.user_id)));
@@ -875,6 +879,13 @@ function dayFeePaise(vehicle: string) {
   return vehicle === "auto" ? 1200 : vehicle === "bike" ? 1000 : 0;
 }
 
+/** Staging field-test only: skip prepaid day-fee for go-online / matching when explicitly enabled. */
+export function dayFeeWaived(env?: { ROVEYA_SKIP_DAY_FEE?: string; NEXT_PUBLIC_SUPABASE_URL?: string }) {
+  const flag = env?.ROVEYA_SKIP_DAY_FEE ?? process.env.ROVEYA_SKIP_DAY_FEE;
+  const url = env?.NEXT_PUBLIC_SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+  return flag === "staging" && url === "https://pqnfipleuztivnrsyvkd.supabase.co";
+}
+
 function insufficientDutyError(balancePaise: number, feePaise: number, day: string) {
   const need = Math.max(0, feePaise - Math.max(0, balancePaise));
   throw new ApiError("Insufficient wallet balance. Recharge your wallet to go online.", 402, undefined, {
@@ -908,6 +919,36 @@ export async function setDuty(captainId: string, online: boolean, spot?: { latit
   const lng = spot?.longitude;
   const spotOk = lat != null && lng != null && locationFixBelievable(null, { latitude: lat, longitude: lng });
   if (!spotOk) throw new ApiError("Turn on location to go on duty.", 400);
+
+  // Staging field test: go online without charging the ₹10/₹12 day fee.
+  if (dayFeeWaived()) {
+    const now = new Date().toISOString();
+    const { error } = await db().from("captain_presence").upsert(
+      {
+        captain_id: captainId,
+        online: true,
+        vehicle,
+        latitude: lat,
+        longitude: lng,
+        heading: spot?.heading ?? 0,
+        auto_accept: Boolean(spot?.autoAccept),
+        online_since: now,
+        updated_at: now,
+      },
+      { onConflict: "captain_id" },
+    );
+    if (error) throw new ApiError("Duty could not be updated.", 400);
+    observe("duty_day_fee_waived", { vehicle });
+    return {
+      ok: true,
+      dayCharge: null,
+      feePaidToday: true,
+      balancePaise: 0,
+      feePaise: 0,
+      rechargeAvailable: false,
+      dayFeeWaived: true,
+    };
+  }
 
   // Fail-closed: duty activation requires the atomic prepaid RPC. No non-atomic fallback.
   const atomic = await db().rpc("go_online_with_day_fee", {
@@ -1045,16 +1086,18 @@ async function tellRiderAssigned(tripId: string, captainId: string) {
 
 export async function acceptOffer(captainId: string, offerId: string) {
   const settings = await loadDispatchSettings();
-  await renewOnlineDayFee(captainId, settings.gpsFreshSeconds);
-  const paid = await captainsPaidForIstDay([captainId]);
-  if (!paid.has(captainId)) {
-    const now = new Date().toISOString();
-    await db().from("trip_offers").update({ status: "withdrawn", decided_at: now }).eq("id", offerId).eq("captain_id", captainId).eq("status", "offered");
-    throw new ApiError("Insufficient wallet balance. Recharge your wallet to go online.", 402, undefined, {
-      code: "insufficient_wallet_balance",
-      feePaidToday: false,
-      rechargeAvailable: false,
-    });
+  if (!dayFeeWaived()) {
+    await renewOnlineDayFee(captainId, settings.gpsFreshSeconds);
+    const paid = await captainsPaidForIstDay([captainId]);
+    if (!paid.has(captainId)) {
+      const now = new Date().toISOString();
+      await db().from("trip_offers").update({ status: "withdrawn", decided_at: now }).eq("id", offerId).eq("captain_id", captainId).eq("status", "offered");
+      throw new ApiError("Insufficient wallet balance. Recharge your wallet to go online.", 402, undefined, {
+        code: "insufficient_wallet_balance",
+        feePaidToday: false,
+        rechargeAvailable: false,
+      });
+    }
   }
   const rpc = await db().rpc("accept_city_offer", { p_offer: offerId, p_captain: captainId });
   const missing = Boolean(rpc.error && /could not find|schema cache|PGRST202|42883|does not exist/i.test(rpc.error.message));

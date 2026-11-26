@@ -56,9 +56,9 @@ export function WalletScreen({ navigation }: Props) {
           <Text style={styles.redeemText}>{canRedeem ? "Redeem to bank" : `Redeem from ${inr(MIN_REDEEM)}`}</Text>
         </Pressable>
         <Text style={[page.small, { marginTop: 10 }]}>
-          Bike day fee ₹10 · Auto day fee ₹12. Your daily platform fee renews automatically at 12:00 AM IST while you remain online and available. If your wallet balance is insufficient, you can finish your existing ride, but new ride requests will be paused.
+          Staging field test: the daily platform fee is waived. You can go online with ₹0 wallet. Bike ₹10 / Auto ₹12 fees stay off until production.
         </Text>
-        <Text style={[page.small, { marginTop: 8 }]}>Wallet recharge is not available in this build yet.</Text>
+        <Text style={[page.small, { marginTop: 8 }]}>Wallet recharge stays off in this staging build.</Text>
         <View style={styles.heroStats}>
           <View style={{ flex: 1 }}>
             <Text style={styles.heroStat}>{inr(cashToday)}</Text>
