@@ -53,10 +53,12 @@ export function EarningsScreen({ navigation }: TabProps) {
   const from = range === "today" ? startOfDay() : startOfWeek();
   const trips = store.trips.filter((trip) => trip.at >= from);
   const sum = summarise(trips);
-  const offered = sum.done.length + sum.missed;
-  const acceptance = offered ? Math.round((sum.done.length / offered) * 100) : 100;
-  const rated = sum.done.filter((trip) => trip.ratingReceived);
-  const rating = rated.length ? rated.reduce((s, trip) => s + (trip.ratingReceived ?? 0), 0) / rated.length : 0;
+  const stats = store.captainStats;
+  const offered = (stats?.offersAccepted ?? 0) + (stats?.offersRejected ?? 0) + (stats?.offersExpired ?? 0);
+  const acceptance = offered ? Math.round((stats?.acceptanceRate ?? 0) * 100) : null;
+  const rating = stats && stats.ratingCount ? stats.ratingAvg : 0;
+  const missed = stats?.offersExpired ?? sum.missed;
+  const cancelled = stats?.cancelled ?? sum.cancelled;
 
   const week = weekdays.map((label, index) => {
     const start = startOfWeek() + index * DAY_MS;
@@ -121,10 +123,10 @@ export function EarningsScreen({ navigation }: TabProps) {
 
       <SectionTitle>PERFORMANCE</SectionTitle>
       <View style={styles.grid}>
-        <Metric icon="checkmark-done-outline" value={`${acceptance}%`} label="Acceptance" />
+        <Metric icon="checkmark-done-outline" value={acceptance == null ? "—" : `${acceptance}%`} label="Acceptance" />
         <Metric icon="star-outline" value={rating ? rating.toFixed(2) : "—"} label="Rating" />
-        <Metric icon="close-circle-outline" value={String(sum.cancelled)} label="Cancelled" />
-        <Metric icon="time-outline" value={String(sum.missed)} label="Missed" />
+        <Metric icon="close-circle-outline" value={String(cancelled)} label="Cancelled" />
+        <Metric icon="time-outline" value={String(missed)} label="Expired offers" />
       </View>
 
       <View style={styles.ordersHead}>

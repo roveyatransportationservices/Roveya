@@ -503,21 +503,32 @@ async function offerOneTrip(tripId: string) {
   const { data: captains } = await db().from("captains").select("user_id").in("user_id", feeEligible.map((row) => row.captain_id)).eq("status", "active");
   const active = new Set(((captains ?? []) as Row[]).map((row) => String(row.user_id)));
   const pickup = { lat: Number(trip.pickup_lat), lng: Number(trip.pickup_lng) };
-  const radius = searchRadiusKm(elapsed, settings);
-  const ranked = eligibleCaptains(
-    feeEligible.map((row) => ({
-      id: String(row.captain_id),
-      vehicle: String(trip.vehicle),
-      pickupKm: kmBetween(pickup, { lat: Number(row.latitude), lng: Number(row.longitude) }),
-      approved: active.has(String(row.captain_id)),
-      fresh: true,
-      busy: busyIds.has(String(row.captain_id)),
-      pending: pendingIds.has(String(row.captain_id)),
-    })),
-    String(trip.vehicle),
-    radius,
-    Number(trip.distance_km),
-  );
+  const candidates = feeEligible.map((row) => ({
+    id: String(row.captain_id),
+    vehicle: String(trip.vehicle),
+    pickupKm: kmBetween(pickup, { lat: Number(row.latitude), lng: Number(row.longitude) }),
+    approved: active.has(String(row.captain_id)),
+    fresh: true,
+    busy: busyIds.has(String(row.captain_id)),
+    pending: pendingIds.has(String(row.captain_id)),
+  }));
+  // Staging-only: dayFeeWaived() is hard-gated to staging Supabase — never true in production.
+  const pickupPolicy = { stagingRelax: dayFeeWaived() };
+  // Time-based ring, then immediately climb larger rings when this ring is empty
+  // (nearby reject must not wait for the next offerSeconds window to reach Captain B).
+  let radius = searchRadiusKm(elapsed, settings);
+  let ranked = eligibleCaptains(candidates, String(trip.vehicle), radius, Number(trip.distance_km), pickupPolicy);
+  if (!ranked.length) {
+    for (const next of settings.radiiKm) {
+      if (next <= radius) continue;
+      ranked = eligibleCaptains(candidates, String(trip.vehicle), next, Number(trip.distance_km), pickupPolicy);
+      if (ranked.length) {
+        radius = next;
+        observe("match_radius_expand", { from: searchRadiusKm(elapsed, settings), to: next });
+        break;
+      }
+    }
+  }
   const first = ranked[0];
   const spot = first ? fresh.find((row) => String(row.captain_id) === first.id) : null;
   let skipped = 0;
@@ -754,12 +765,15 @@ export async function rideForPassenger(riderId: string, tripId: string) {
   const offered = trip.status === "searching" ? await db().from("trip_offers").select("id").eq("trip_id", tripId).eq("status", "offered").gt("expires_at", new Date().toISOString()).limit(1) : { data: [] };
   let captain: Row | null = null;
   let location: { latitude: number; longitude: number; heading: number; updatedAt: string | null } | null = null;
+  let completedTrips = 0;
   if (trip.captain_id) {
-    const [{ data: person }, { data: spot }] = await Promise.all([
+    const [{ data: person }, { data: spot }, completed] = await Promise.all([
       db().from("captains").select("name,rating,vehicle_no,vehicle_model").eq("user_id", trip.captain_id).maybeSingle(),
       db().from("captain_presence").select("latitude,longitude,heading,updated_at").eq("captain_id", trip.captain_id).maybeSingle(),
+      db().from("trips").select("id", { count: "exact", head: true }).eq("captain_id", trip.captain_id).eq("status", "completed"),
     ]);
     captain = person as Row | null;
+    completedTrips = Number(completed.count ?? 0);
     if (spot?.latitude != null) {
       location = {
         latitude: Number(spot.latitude),
@@ -778,10 +792,18 @@ export async function rideForPassenger(riderId: string, tripId: string) {
     otp: (secretRow.data?.otp as string | undefined) ?? null,
     cancelledBy: trip.cancelled_by,
     nearPickup: Boolean(here && nearPickup(here, pickup)),
+    // On-trip corridor check. Approach wrong-direction is handled on the Captain client with sustained filters.
     offRoute: Boolean(here && trip.status === "on_trip" && offRoute(here, pickup, drop)),
     captainUserId: trip.captain_id ? String(trip.captain_id) : null,
     captain: captain
-      ? { name: captain.name, rating: Number(captain.rating ?? 5), trips: 0, vehicleNo: captain.vehicle_no, vehicleName: captain.vehicle_model, location }
+      ? {
+          name: captain.name,
+          rating: Number(captain.rating ?? 5),
+          trips: completedTrips,
+          vehicleNo: captain.vehicle_no,
+          vehicleName: captain.vehicle_model,
+          location,
+        }
       : null,
   };
 }
@@ -1404,22 +1426,50 @@ export async function road(from: string, to: string) {
 export async function passengerHistory(riderId: string) {
   const { data } = await db()
     .from("trips")
-    .select("code,vehicle,status,pickup_name,drop_name,distance_km,fare_paise,payment,requested_at,completed_at")
+    .select("id,code,vehicle,status,pickup_name,drop_name,distance_km,eta_min,fare_paise,payment,requested_at,completed_at,cancelled_at,cancel_reason,captain_id")
     .eq("rider_id", riderId)
     .order("requested_at", { ascending: false })
     .limit(40);
+  const rows = (data ?? []) as Row[];
+  const tripIds = rows.map((row) => String(row.id));
+  const captainIds = [...new Set(rows.map((row) => row.captain_id).filter(Boolean).map(String))];
+  const [{ data: ratings }, { data: received }, { data: captains }] = await Promise.all([
+    tripIds.length
+      ? db().from("trip_ratings").select("trip_id,stars").eq("by_role", "rider").in("trip_id", tripIds)
+      : Promise.resolve({ data: [] as Row[] }),
+    tripIds.length
+      ? db().from("trip_ratings").select("trip_id,stars").eq("by_role", "captain").in("trip_id", tripIds)
+      : Promise.resolve({ data: [] as Row[] }),
+    captainIds.length
+      ? db().from("captains").select("user_id,name,vehicle_no,vehicle_model").in("user_id", captainIds)
+      : Promise.resolve({ data: [] as Row[] }),
+  ]);
+  const ratingByTrip = new Map(((ratings ?? []) as Row[]).map((row) => [String(row.trip_id), Number(row.stars)]));
+  const receivedByTrip = new Map(((received ?? []) as Row[]).map((row) => [String(row.trip_id), Number(row.stars)]));
+  const captainById = new Map(((captains ?? []) as Row[]).map((row) => [String(row.user_id), row]));
   return {
-    trips: ((data ?? []) as Row[]).map((row) => ({
-      code: row.code,
-      vehicle: row.vehicle,
-      status: row.status,
-      pickup: { name: row.pickup_name },
-      drop: { name: row.drop_name },
-      distanceKm: Number(row.distance_km),
-      fare: Number(row.fare_paise) / 100,
-      payment: row.payment,
-      requestedAt: row.requested_at,
-      completedAt: row.completed_at ?? null,
-    })),
+    trips: rows.map((row) => {
+      const captain = row.captain_id ? captainById.get(String(row.captain_id)) : null;
+      return {
+        code: row.code,
+        vehicle: row.vehicle,
+        status: row.status,
+        pickup: { name: row.pickup_name },
+        drop: { name: row.drop_name },
+        distanceKm: Number(row.distance_km),
+        minutes: Number(row.eta_min),
+        fare: Number(row.fare_paise) / 100,
+        payment: row.payment,
+        requestedAt: row.requested_at,
+        completedAt: row.completed_at ?? null,
+        cancelledAt: row.cancelled_at ?? null,
+        reason: row.cancel_reason ?? null,
+        rating: ratingByTrip.get(String(row.id)) ?? null,
+        ratingReceived: receivedByTrip.get(String(row.id)) ?? null,
+        captain: captain
+          ? { name: captain.name, vehicleNo: captain.vehicle_no, vehicleName: captain.vehicle_model }
+          : null,
+      };
+    }),
   };
 }

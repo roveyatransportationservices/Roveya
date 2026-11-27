@@ -16,6 +16,7 @@ import { distanceKm, inr } from "../geo";
 import { waitingCharge } from "../dayPlan";
 import { captainAccess, rideBill } from "../ridePlan";
 import { alongPath } from "../path";
+import { metresBetween, nextTrackFix, shouldPostLocation, sustainedAwayFromGoal, type TrackFix } from "../geoTrack";
 import { roadRoute } from "../routing";
 import { useStore } from "../store";
 import { colors, type } from "../theme";
@@ -62,32 +63,68 @@ export function JobScreen({ navigation }: NativeStackScreenProps<CaptainStack, "
   const [stars, setStars] = useState(0);
   const [tags, setTags] = useState<string[]>([]);
   const [me, setMe] = useState<{ latitude: number; longitude: number; heading: number } | null>(null);
+  const [offCourse, setOffCourse] = useState(false);
   const acting = useRef(false);
+  const trackRef = useRef<TrackFix | null>(null);
+  const postedRef = useRef<TrackFix | null>(null);
+  const postingRef = useRef(false);
+  const awaySamples = useRef<{ distanceKm: number; moving: boolean }[]>([]);
+  const lastRerouteAt = useRef(0);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => true);
     return () => sub.remove();
   }, []);
 
-  // Live rides show the phone's real position; the demo build plays the drive on a timer.
+  // Live rides must keep posting GPS while assigned → pickup → arrived → OTP → on trip → drop.
+  // DutyScreen heartbeats stop after navigate("Job"). Single interval; no overlapping POSTs.
   useEffect(() => {
     if (!live) return;
+    const terminal = job?.status === "collect" || job?.status === "rate" || !job;
+    if (terminal) {
+      awaySamples.current = [];
+      setOffCourse(false);
+      return;
+    }
     let stopped = false;
-    const read = () =>
-      void Location.getCurrentPositionAsync({})
+    const read = () => {
+      if (stopped || postingRef.current) return;
+      void Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
         .then((position) => {
           if (stopped) return;
-          const heading = position.coords.heading ?? 0;
-          setMe({ latitude: position.coords.latitude, longitude: position.coords.longitude, heading: heading >= 0 && heading <= 360 ? heading : 0 });
+          const stamped = Date.now();
+          const next = nextTrackFix(trackRef.current, {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            heading: position.coords.heading,
+            accuracy: position.coords.accuracy,
+            at: stamped,
+          });
+          // Drop out-of-order / older client stamps than the last accepted fix.
+          if (trackRef.current && next.at < trackRef.current.at) return;
+          trackRef.current = next;
+          setMe({ latitude: next.latitude, longitude: next.longitude, heading: next.heading });
+
+          if (!shouldPostLocation(postedRef.current, next)) return;
+          postingRef.current = true;
+          void api("/captain/location", { body: { latitude: next.latitude, longitude: next.longitude, heading: next.heading } })
+            .then(() => {
+              postedRef.current = next;
+            })
+            .catch(() => undefined)
+            .finally(() => {
+              postingRef.current = false;
+            });
         })
         .catch(() => undefined);
+    };
     read();
-    const timer = setInterval(read, 5000);
+    const timer = setInterval(read, 4000);
     return () => {
       stopped = true;
       clearInterval(timer);
     };
-  }, []);
+  }, [live, job?.status, job?.id]);
 
   const located = Boolean(me);
   useEffect(() => {
@@ -109,6 +146,38 @@ export function JobScreen({ navigation }: NativeStackScreenProps<CaptainStack, "
     });
     return () => controller.abort();
   }, [job?.id, located]);
+
+  // Wrong-direction / off-route: sustained growth away from the active goal → recalculate once (cooldown).
+  const awayPrev = useRef<{ latitude: number; longitude: number } | null>(null);
+  useEffect(() => {
+    if (!live || !me || !job) return;
+    if (job.status !== "toPickup" && job.status !== "onTrip") {
+      awaySamples.current = [];
+      awayPrev.current = null;
+      setOffCourse(false);
+      return;
+    }
+    const goal = job.status === "toPickup" ? job.pickup : job.drop;
+    const moving = awayPrev.current ? metresBetween(awayPrev.current, me) >= 8 : false;
+    awayPrev.current = { latitude: me.latitude, longitude: me.longitude };
+    const toGoalKm = distanceKm(me, goal);
+    awaySamples.current = [...awaySamples.current.slice(-8), { distanceKm: toGoalKm, moving }];
+    const away = sustainedAwayFromGoal(awaySamples.current);
+    setOffCourse(away);
+    if (!away || Date.now() - lastRerouteAt.current < 25_000) return;
+    lastRerouteAt.current = Date.now();
+    const from = { latitude: me.latitude, longitude: me.longitude };
+    const statusNow = job.status;
+    void roadRoute(from, goal).then((road) => {
+      if (!road) return;
+      const leg = { coords: road.coords, minutes: Math.max(1, Math.round(road.minutes)), km: road.km };
+      if (statusNow === "toPickup") setToPickup(leg);
+      else setRide(leg);
+      awaySamples.current = [];
+      setOffCourse(false);
+      setNote("Route updated — follow the new path");
+    });
+  }, [me?.latitude, me?.longitude, job?.status, job?.id]);
 
   const status = job?.status ?? "rate";
   const leg = status === "toPickup" ? toPickup : status === "onTrip" ? ride : null;
@@ -322,6 +391,13 @@ export function JobScreen({ navigation }: NativeStackScreenProps<CaptainStack, "
           <Text style={styles.chipText}>{chip}</Text>
         </View>
       </View>
+
+      {offCourse && !note ? (
+        <View style={[styles.toast, { top: Math.max(insets.top, 12) + 62 }]}>
+          <Ionicons name="navigate" size={14} color={colors.gold} />
+          <Text style={styles.toastText}>Off the planned path — updating route</Text>
+        </View>
+      ) : null}
 
       {note ? (
         <View style={[styles.toast, { top: Math.max(insets.top, 12) + 62 }]}>

@@ -186,28 +186,84 @@ export async function saveRating(userId: string, tripId: string, role: "rider" |
   const column = role === "rider" ? "rider_id" : "captain_id";
   const { data } = await db().from("trips").select("id,status").eq("id", tripId).eq(column, userId).maybeSingle();
   if (!data) throw new ApiError("Ride not found.", 404);
-  if (data.status !== "completed" && data.status !== "on_trip") throw new ApiError("You can rate this ride after it finishes.", 409);
+  if (data.status !== "completed") throw new ApiError("You can rate this ride after it finishes.", 409);
   const score = Math.round(stars);
   if (score < 1 || score > 5) return { ok: true };
-  const row = { trip_id: tripId, by_role: role, stars: score, tags: (tags ?? []).slice(0, 8), note: note?.slice(0, 500) ?? null };
   const existing = await db().from("trip_ratings").select("trip_id").eq("trip_id", tripId).eq("by_role", role).maybeSingle();
-  const saved = existing.data ? await db().from("trip_ratings").update(row).eq("trip_id", tripId).eq("by_role", role) : await db().from("trip_ratings").insert(row);
+  if (existing.data) throw new ApiError("You already rated this ride.", 409);
+  const row = { trip_id: tripId, by_role: role, stars: score, tags: (tags ?? []).slice(0, 8), note: note?.slice(0, 500) ?? null };
+  const saved = await db().from("trip_ratings").insert(row);
   if (saved.error) throw new ApiError("The rating could not be saved.", 400);
   return { ok: true };
 }
 
-export async function captainEarnings(captainId: string) {
-  const since = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString();
-  const [{ data: trips }, { data: wallet }, { data: ledger }] = await Promise.all([
-    db().from("trips").select("code,status,vehicle,fare_paise,bonus_paise,payment,pickup_name,drop_name,distance_km,eta_min,completed_at,cancelled_at,cancel_reason").eq("captain_id", captainId).gte("requested_at", since).order("requested_at", { ascending: false }).limit(100),
+export async function captainEarnings(captainId: string, rangeDays = 31) {
+  const days = Math.min(31, Math.max(1, rangeDays));
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  const [{ data: trips }, { data: wallet }, { data: ledger }, { data: offers }] = await Promise.all([
+    db().from("trips").select("id,code,status,vehicle,fare_paise,bonus_paise,payment,pickup_name,drop_name,distance_km,eta_min,completed_at,cancelled_at,cancel_reason,requested_at").eq("captain_id", captainId).gte("requested_at", since).order("requested_at", { ascending: false }).limit(100),
     db().from("wallets").select("balance_paise").eq("owner_id", captainId).maybeSingle(),
     db().from("ledger_entries").select("id,kind,amount_paise,note,created_at").eq("owner_id", captainId).order("created_at", { ascending: false }).limit(40),
+    db().from("trip_offers").select("status").eq("captain_id", captainId).limit(500),
   ]);
+  const tripRows = (trips ?? []) as Row[];
+  const offerRows = (offers ?? []) as Row[];
+  const tripIds = tripRows.map((row) => String(row.id));
+  const { data: ratings } = tripIds.length
+    ? await db().from("trip_ratings").select("trip_id,stars,tags,note,created_at").eq("by_role", "rider").in("trip_id", tripIds).order("created_at", { ascending: false }).limit(40)
+    : { data: [] as Row[] };
+  const ratingRows = (ratings ?? []) as Row[];
+  const codeByTrip = new Map(tripRows.map((row) => [String(row.id), String(row.code)]));
+  const completed = tripRows.filter((row) => row.status === "completed").length;
+  const cancelled = tripRows.filter((row) => row.status === "cancelled").length;
+  const totalTrips = tripRows.length;
+  const offersAccepted = offerRows.filter((row) => row.status === "accepted").length;
+  const offersRejected = offerRows.filter((row) => row.status === "rejected").length;
+  const offersExpired = offerRows.filter((row) => row.status === "expired").length;
+  const offersDecided = offersAccepted + offersRejected + offersExpired;
+  const ratingAvg = ratingRows.length ? ratingRows.reduce((sum, row) => sum + Number(row.stars), 0) / ratingRows.length : 0;
+  const ratingByTrip = new Map(ratingRows.map((row) => [String(row.trip_id), Number(row.stars)]));
+  const dayStart = new Date();
+  dayStart.setHours(0, 0, 0, 0);
+  const weekStart = new Date(dayStart);
+  weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
+  const monthStart = new Date(dayStart.getFullYear(), dayStart.getMonth(), 1);
+  const earningOf = (row: Row) => (row.status === "completed" ? Number(row.fare_paise) / 100 + Number(row.bonus_paise ?? 0) / 100 : 0);
+  const inRange = (iso: string | null | undefined, from: Date) => Boolean(iso && Date.parse(String(iso)) >= from.getTime());
+  const dailyEarnings = tripRows.filter((row) => inRange(String(row.completed_at ?? ""), dayStart)).reduce((sum, row) => sum + earningOf(row), 0);
+  const weeklyEarnings = tripRows.filter((row) => inRange(String(row.completed_at ?? ""), weekStart)).reduce((sum, row) => sum + earningOf(row), 0);
+  const monthlyEarnings = tripRows.filter((row) => inRange(String(row.completed_at ?? ""), monthStart)).reduce((sum, row) => sum + earningOf(row), 0);
+  const feeEntries = ((ledger ?? []) as Row[]).filter((row) => /day.?fee|platform.?fee|access.?fee/i.test(String(row.kind ?? "") + String(row.note ?? "")));
   return {
     balance: Number(wallet?.balance_paise ?? 0) / 100,
     entries: ((ledger ?? []) as Row[]).map((row) => ({ id: row.id, kind: row.kind, amount: Number(row.amount_paise) / 100, note: row.note ?? null, at: row.created_at })),
     commissionPct: 0,
-    trips: ((trips ?? []) as Row[]).map((row) => ({
+    stats: {
+      totalTrips,
+      completed,
+      cancelled,
+      offersAccepted,
+      offersRejected,
+      offersExpired,
+      acceptanceRate: offersDecided ? offersAccepted / offersDecided : 0,
+      cancellationRate: totalTrips ? cancelled / totalTrips : 0,
+      completionRate: totalTrips ? completed / totalTrips : 0,
+      ratingAvg,
+      ratingCount: ratingRows.length,
+      dailyEarnings,
+      weeklyEarnings,
+      monthlyEarnings,
+      platformFeeEntries: feeEntries.length,
+    },
+    feedback: ratingRows.map((row) => ({
+      id: String(row.trip_id),
+      stars: Number(row.stars),
+      tags: Array.isArray(row.tags) ? row.tags : [],
+      note: row.note ? String(row.note) : "",
+      at: row.created_at,
+      tripCode: codeByTrip.get(String(row.trip_id)) ?? null,
+    })),
+    trips: tripRows.map((row) => ({
       code: row.code,
       status: row.status,
       vehicle: row.vehicle,
@@ -219,8 +275,9 @@ export async function captainEarnings(captainId: string) {
       drop: row.drop_name,
       distanceKm: Number(row.distance_km),
       minutes: Number(row.eta_min),
-      at: row.completed_at || row.cancelled_at,
+      at: row.completed_at || row.cancelled_at || row.requested_at,
       reason: row.cancel_reason ?? null,
+      ratingReceived: ratingByTrip.get(String(row.id)) ?? null,
     })),
   };
 }

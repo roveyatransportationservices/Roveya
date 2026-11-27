@@ -13,7 +13,42 @@ const key = "roveya-captain";
 const jobKey = "roveya-captain-job";
 
 type ServerWallet = { balance: number; entries: { id: number; kind: string; amount: number; note: string | null; at: string }[] };
-type ServerEarnings = { commissionPct: number; trips: { code: string; status: string; vehicle: VehicleKind; fare: number; bonus: number; commission: number; payment: string; pickup: string; drop: string; distanceKm: number; minutes: number; at: string; reason: string | null }[] };
+type ServerEarnings = {
+  commissionPct: number;
+  stats?: {
+    totalTrips: number;
+    completed: number;
+    cancelled: number;
+    offersAccepted: number;
+    offersRejected: number;
+    offersExpired: number;
+    acceptanceRate: number;
+    cancellationRate: number;
+    completionRate: number;
+    ratingAvg: number;
+    ratingCount: number;
+    dailyEarnings: number;
+    weeklyEarnings: number;
+    monthlyEarnings: number;
+  };
+  feedback?: { id: string; stars: number; tags: string[]; note: string; at: string; tripCode: string | null }[];
+  trips: {
+    code: string;
+    status: string;
+    vehicle: VehicleKind;
+    fare: number;
+    bonus: number;
+    commission: number;
+    payment: string;
+    pickup: string;
+    drop: string;
+    distanceKm: number;
+    minutes: number;
+    at: string;
+    reason: string | null;
+    ratingReceived?: number | null;
+  }[];
+};
 
 const ledgerLabel: Record<string, string> = {
   ride_earning: "Ride earning",
@@ -50,9 +85,23 @@ function fromServer(wallet: ServerWallet | null, earnings: ServerEarnings | null
               status: trip.status === "completed" ? "Completed" : "Cancelled",
               customer: "Passenger",
               reason: trip.reason ?? undefined,
+              ratingReceived: trip.ratingReceived ?? undefined,
             }),
           )
       : null,
+    feedback: earnings?.feedback
+      ? earnings.feedback.map(
+          (row): Feedback => ({
+            id: row.id,
+            customer: "Passenger",
+            stars: row.stars,
+            note: row.note,
+            tags: row.tags,
+            at: Date.parse(row.at),
+          }),
+        )
+      : null,
+    stats: earnings?.stats ?? null,
   };
 }
 
@@ -74,6 +123,22 @@ type Store = {
   feedback: Feedback[];
   prefs: Prefs;
   commissionPct: number;
+  captainStats: {
+    totalTrips: number;
+    completed: number;
+    cancelled: number;
+    offersAccepted: number;
+    offersRejected: number;
+    offersExpired: number;
+    acceptanceRate: number;
+    cancellationRate: number;
+    completionRate: number;
+    ratingAvg: number;
+    ratingCount: number;
+    dailyEarnings: number;
+    weeklyEarnings: number;
+    monthlyEarnings: number;
+  } | null;
   ridePlan: RidePlan;
   fareCard: FareCard;
   dayBook: DayBook;
@@ -119,6 +184,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [feedback, setFeedback] = useState<Feedback[]>([]);
   const [balance, setBalance] = useState(0);
   const [commissionPct, setCommissionPct] = useState(0);
+  const [captainStats, setCaptainStats] = useState<Store["captainStats"]>(null);
   const [ridePlan, setRidePlan] = useState<RidePlan>(DEFAULT_RIDE_PLAN);
   const [fareCard, setFareCard] = useState<FareCard>(DEFAULT_FARE_CARD);
   const [dayBook, setDayBook] = useState<DayBook>(EMPTY_DAY_BOOK);
@@ -136,6 +202,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (next.balance !== null) setBalance(next.balance);
     if (next.txns) setTxns(next.txns);
     if (next.trips) setTrips(next.trips);
+    if (next.feedback) setFeedback(next.feedback);
+    if (next.stats) setCaptainStats(next.stats);
   };
   const refreshSoon = () => setTimeout(() => void refresh(), 1500);
   const [prefs, setPrefs] = useState<Prefs>({ sound: true, vibrate: true, awake: true, nav: "google", language: "English" });
@@ -251,6 +319,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       feedback,
       prefs,
       commissionPct,
+      captainStats,
       ridePlan,
       fareCard,
       dayBook,
@@ -409,7 +478,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       },
       refresh,
     }),
-    [ready, captain, signedIn, online, onlineSince, loginMinutes, autoAccept, offer, job, trips, txns, wallet, feedback, prefs, commissionPct, ridePlan, fareCard, dayBook],
+    [ready, captain, signedIn, online, onlineSince, loginMinutes, autoAccept, offer, job, trips, txns, wallet, feedback, prefs, commissionPct, captainStats, ridePlan, fareCard, dayBook],
   );
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;

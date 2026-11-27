@@ -19,6 +19,8 @@ const iconSize = { bike: 54, auto: 42, cab: 52 };
 function GoogleDutyMap({ me, kind, online, target, padBottom, recenter }: { me: Point; kind: VehicleKind; online: boolean; target: Point | null; padBottom: number; recenter: number }) {
   const map = useRef<MapView>(null);
   const [tracking, setTracking] = useState(true);
+  // Manual zoom/drag must not stop GPS — only pause camera follow until Recenter.
+  const [follow, setFollow] = useState(true);
 
   useEffect(() => {
     setTracking(true);
@@ -26,9 +28,13 @@ function GoogleDutyMap({ me, kind, online, target, padBottom, recenter }: { me: 
     return () => clearTimeout(timer);
   }, [kind, online]);
 
+  useEffect(() => {
+    setFollow(true);
+  }, [recenter]);
+
   const frame = () => {
     const view = map.current;
-    if (!view) return;
+    if (!view || !follow) return;
     if (target) {
       view.fitToCoordinates([me, target], { edgePadding: { top: px(110), right: px(60), bottom: px(padBottom + 30), left: px(60) }, animated: true });
       return;
@@ -39,7 +45,7 @@ function GoogleDutyMap({ me, kind, online, target, padBottom, recenter }: { me: 
   useEffect(() => {
     const timer = setTimeout(frame, 200);
     return () => clearTimeout(timer);
-  }, [me.latitude, me.longitude, target?.latitude, target?.longitude, padBottom, recenter]);
+  }, [me.latitude, me.longitude, target?.latitude, target?.longitude, padBottom, recenter, follow]);
 
   const size = iconSize[kind];
   return (
@@ -53,6 +59,10 @@ function GoogleDutyMap({ me, kind, online, target, padBottom, recenter }: { me: 
         initialRegion={{ ...me, latitudeDelta: 0.04, longitudeDelta: 0.04 }}
         mapPadding={target ? undefined : { top: 0, right: 0, bottom: px(Math.max(0, padBottom - 90)), left: 0 }}
         onMapReady={frame}
+        onPanDrag={() => setFollow(false)}
+        onRegionChangeComplete={() => {
+          /* region changes from animateCamera also fire — follow flag gates re-frame */
+        }}
         showsCompass={false}
         showsMyLocationButton={false}
         toolbarEnabled={false}

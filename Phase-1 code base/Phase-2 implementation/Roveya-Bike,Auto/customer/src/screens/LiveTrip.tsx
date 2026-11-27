@@ -10,6 +10,7 @@ import { vehicleCopy } from "../data";
 import { api } from "../backend";
 import { distanceKm, inr } from "../geo";
 import { alongPath } from "../path";
+import { nextTrackFix, type TrackFix } from "../geoTrack";
 import { roadRoute } from "../routing";
 import { useStore } from "../store";
 import { colors, type } from "../theme";
@@ -69,6 +70,27 @@ export function LiveTrip({ trip, onCancel, onDone, onSafety }: { trip: ActiveTri
   const [stars, setStars] = useState(0);
   const [payNote, setPayNote] = useState("");
   const [tags, setTags] = useState<string[]>([]);
+  const [rerouteNote, setRerouteNote] = useState("");
+  const [smoothPin, setSmoothPin] = useState<TrackFix | null>(null);
+  const smoothRef = useRef<TrackFix | null>(null);
+  const lastCustomerReroute = useRef(0);
+
+  useEffect(() => {
+    if (!trip.captainAt) {
+      smoothRef.current = null;
+      setSmoothPin(null);
+      return;
+    }
+    const next = nextTrackFix(smoothRef.current, {
+      latitude: trip.captainAt.latitude,
+      longitude: trip.captainAt.longitude,
+      heading: trip.captainAt.heading,
+      at: trip.captainAt.updatedAt ? Date.parse(String(trip.captainAt.updatedAt)) : Date.now(),
+    });
+    if (smoothRef.current && next.at < smoothRef.current.at) return;
+    smoothRef.current = next;
+    setSmoothPin(next);
+  }, [trip.captainAt?.latitude, trip.captainAt?.longitude, trip.captainAt?.heading, trip.captainAt?.updatedAt]);
 
   // Approach polyline from the live captain pin (not a fake offset), so the passenger sees the real route in.
   useEffect(() => {
@@ -141,8 +163,28 @@ export function LiveTrip({ trip, onCancel, onDone, onSafety }: { trip: ActiveTri
     status === "arrived" && atPickup ? atPickup :
     (status === "payment" || status === "rating") && ride ? alongPath(ride.coords, 1) :
     { latitude: captainStart.latitude, longitude: captainStart.longitude, heading: 180, remaining: null };
-  const spot = !simulated && trip.captainAt ? trip.captainAt : here;
+  const spot = !simulated && smoothPin ? smoothPin : !simulated && trip.captainAt ? trip.captainAt : here;
   const pin: CaptainPin = { id: "captain", kind: trip.vehicle, latitude: spot.latitude, longitude: spot.longitude, heading: spot.heading };
+
+  // Customer-side route sync when the desk reports off-route (cooldown avoids OSRM spam).
+  useEffect(() => {
+    if (simulated || !trip.offRoute || !trip.captainAt) {
+      setRerouteNote("");
+      return;
+    }
+    if (Date.now() - lastCustomerReroute.current < 30_000) return;
+    lastCustomerReroute.current = Date.now();
+    setRerouteNote("Captain left the planned path — updating the map");
+    const goal = status === "assigned" || status === "arrived" ? trip.pickup : trip.drop;
+    void roadRoute(trip.captainAt, goal).then((road) => {
+      if (!road) return;
+      const leg = { coords: road.coords, minutes: Math.max(1, Math.round(road.minutes)), km: road.km };
+      if (status === "assigned" || status === "arrived") setApproach(leg);
+      else if (status === "onTrip") setRide(leg);
+      setRerouteNote("Route updated");
+      setTimeout(() => setRerouteNote(""), 2500);
+    });
+  }, [trip.offRoute, trip.captainAt?.latitude, trip.captainAt?.longitude, status]);
 
   // Server rides measure progress from the captain's last reported position; demo rides use the timer.
   const goal = status === "assigned" ? trip.pickup : trip.drop;
@@ -444,6 +486,13 @@ export function LiveTrip({ trip, onCancel, onDone, onSafety }: { trip: ActiveTri
             <Ionicons name="shield-checkmark" size={18} color={colors.gold} />
           </Pressable>
         </View>
+
+        {rerouteNote ? (
+          <View style={[styles.chip, { position: "absolute", left: 16, right: 16, top: Math.max(insets.top, 12) + 56, alignSelf: "center" }]}>
+            <Ionicons name="navigate" size={14} color={colors.gold} />
+            <Text style={styles.chipText}>{rerouteNote}</Text>
+          </View>
+        ) : null}
 
         {cancelling ? null : (
           <Pressable accessibilityLabel="Recenter map" onPress={() => setRecenter((value) => value + 1)} style={[styles.recenter, { bottom: visibleSheet + 14 }]}>

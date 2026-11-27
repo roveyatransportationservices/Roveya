@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { Linking, Pressable, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import Constants from "expo-constants";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { api, live } from "../backend";
 import { DeskTickets } from "../components/DeskTickets";
@@ -452,10 +453,13 @@ const services: { icon: FlowIcon; title: string; line: string }[] = [
   { icon: "car-outline", title: "Auto", line: "Door to door" },
   { icon: "people-outline", title: "Taxipool", line: "City to city seats" },
   { icon: "cube-outline", title: "Parcel", line: "Same-day delivery" },
-  { icon: "game-controller-outline", title: "Lounge", line: "Play and earn" },
+  { icon: "help-buoy-outline", title: "Help desk", line: "Claims and safety" },
 ];
 
 export function AboutScreen({ navigation }: NativeStackScreenProps<CustomerStack, "About">) {
+  const appVersion = Constants.expoConfig?.version ?? "1.0.0";
+  const buildNumber = String(Constants.nativeBuildVersion ?? Constants.expoConfig?.android?.versionCode ?? "—");
+  const sourceCommit = String((Constants.expoConfig?.extra as { sourceCommit?: string } | undefined)?.sourceCommit ?? "local");
   return (
     <PageShell kicker="ABOUT" title="About ROVEYA" onBack={() => navigation.goBack()}>
       <LinearGradient colors={[colors.burgundy, colors.plum, colors.inkwell]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[page.heroCard, { alignItems: "center", paddingVertical: 26 }]}>
@@ -488,7 +492,7 @@ export function AboutScreen({ navigation }: NativeStackScreenProps<CustomerStack
 
       <SectionTitle>APP</SectionTitle>
       <Group>
-        <ListRow icon="information-circle-outline" label="Version" sub="1.0.0 · Crafted in Hyderabad" chevron={false} />
+        <ListRow icon="information-circle-outline" label="Version" sub={`${appVersion} (${buildNumber}) · ${sourceCommit}`} chevron={false} />
         <ListRow icon="call-outline" label="ROVEYA desk" sub={`${DESK_LABEL} · Daily, 5:00 AM to 11:00 PM`} onPress={() => navigation.navigate("Desk")} />
         <ListRow icon="reader-outline" label="Terms and privacy" last onPress={() => navigation.navigate("Terms")} />
       </Group>

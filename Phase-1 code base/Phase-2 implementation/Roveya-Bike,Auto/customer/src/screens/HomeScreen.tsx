@@ -17,10 +17,10 @@ import type { CustomerStack, CustomerTabs } from "../navigation";
 
 type Props = CompositeScreenProps<BottomTabScreenProps<CustomerTabs, "Home">, NativeStackScreenProps<CustomerStack>>;
 
-const explore: { icon: keyof typeof Ionicons.glyphMap; label: string; go: "Lounge" | "ParcelFlow" | "Search" | "More" }[] = [
-  { icon: "game-controller-outline", label: "Play &\nEarn", go: "Lounge" },
+const explore: { icon: keyof typeof Ionicons.glyphMap; label: string; go: "ParcelFlow" | "Search" | "More" | "Support" }[] = [
   { icon: "cube-outline", label: "Parcel\non Bike", go: "ParcelFlow" },
   { icon: "bicycle-outline", label: "Scooty", go: "Search" },
+  { icon: "help-buoy-outline", label: "Help\n& Safety", go: "Support" },
   { icon: "grid-outline", label: "More", go: "More" },
 ];
 

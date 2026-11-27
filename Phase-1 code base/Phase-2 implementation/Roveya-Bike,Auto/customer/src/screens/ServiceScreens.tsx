@@ -23,8 +23,8 @@ export function ServicesScreen({ navigation }: NativeStackScreenProps<CustomerSt
   const more: { icon: FlowIcon; title: string; line: string; go: (nav: Nav) => void }[] = [
     { icon: "people-outline", title: "Taxipool", line: "City to city seats", go: (nav) => nav.navigate("Pool") },
     { icon: "cube-outline", title: "Parcel", line: "Send by bike or auto", go: (nav) => nav.navigate("ParcelFlow") },
-    { icon: "game-controller-outline", title: "Lounge", line: "Play and earn coins", go: (nav) => nav.navigate("Tabs", { screen: "Lounge" }) },
-    { icon: "gift-outline", title: "Rewards", line: `${store.coins} coins`, go: (nav) => nav.navigate("Tabs", { screen: "Lounge", params: { section: "rewards" } }) },
+    { icon: "help-buoy-outline", title: "Help", line: "Fares, payments, and claims", go: (nav) => nav.navigate("Support") },
+    { icon: "wallet-outline", title: "Wallet", line: inr(store.wallet), go: (nav) => nav.navigate("Wallet") },
   ];
 
   return (

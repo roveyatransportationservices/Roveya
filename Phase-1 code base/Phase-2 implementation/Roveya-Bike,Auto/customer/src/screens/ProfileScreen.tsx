@@ -9,7 +9,6 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { api } from "../backend";
 import { DESK_PHONE } from "../components/StepShell";
 import { inr } from "../geo";
-import { REDEEM_COINS, REDEEM_VALUE } from "../lounge";
 import { confirmLogout } from "../sessionEpoch";
 import { useStore } from "../store";
 import { colors, type } from "../theme";
@@ -35,8 +34,9 @@ export function ProfileScreen({ navigation }: Props) {
   const name = store.session?.name?.trim() || "ROVEYA rider";
   const phone = store.session?.phone ?? "";
   const completed = store.rides.filter((ride) => ride.status === "Completed").length;
-  const freshCards = store.cards.filter((card) => !card.scratched).length;
-  const coinValue = Math.floor(store.coins / REDEEM_COINS) * REDEEM_VALUE;
+  // rating on PastRide is captain→rider when present (see passengerHistory ratingReceived).
+  const rated = store.rides.filter((ride) => ride.status === "Completed" && ride.rating);
+  const ratingAvg = rated.length ? rated.reduce((sum, ride) => sum + (ride.rating ?? 0), 0) / rated.length : 0;
 
   useEffect(() => {
     if (!confirmOut) {
@@ -73,11 +73,9 @@ export function ProfileScreen({ navigation }: Props) {
       ],
     },
     {
-      title: "PAYMENTS & REWARDS",
+      title: "PAYMENTS",
       rows: [
-        { icon: "wallet-outline", label: "Wallet", sub: "Balance and top-ups", badge: inr(store.wallet), onPress: () => navigation.navigate("Wallet") },
-        { icon: "gift-outline", label: "Scratch cards and coins", sub: `${store.coins} coins`, badge: freshCards ? `${freshCards} new` : undefined, onPress: () => navigation.navigate("Lounge", { section: "rewards" }) },
-        { icon: "person-add-outline", label: "Refer a friend", sub: "You both get ₹50", onPress: () => navigation.navigate("Lounge", { section: "rewards" }) },
+        { icon: "wallet-outline", label: "Wallet", sub: "Balance and history", badge: inr(store.wallet), onPress: () => navigation.navigate("Wallet") },
       ],
     },
     {
@@ -143,15 +141,22 @@ export function ProfileScreen({ navigation }: Props) {
           </View>
           <View style={styles.stats}>
             <Stat
-              value={completed ? "4.90" : "New"}
+              value={ratingAvg ? ratingAvg.toFixed(2) : "New"}
               label="Rating"
               icon="star"
-              onPress={() => detail("My rating", completed ? "4.90 from captains on your completed ROVEYA rides." : "Your rating appears after your first completed ride.")}
+              onPress={() =>
+                detail(
+                  "My rating",
+                  ratingAvg
+                    ? `${ratingAvg.toFixed(2)} from ${rated.length} rated ROVEYA ride${rated.length === 1 ? "" : "s"}.`
+                    : "Your rating appears after captains rate your completed rides.",
+                )
+              }
             />
             <View style={styles.statLine} />
             <Stat value={String(completed)} label="Rides" onPress={() => navigation.navigate("Activity")} />
             <View style={styles.statLine} />
-            <Stat value={String(store.coins)} label="Coins" onPress={() => navigation.navigate("Lounge", { section: "rewards" })} />
+            <Stat value={String(store.rides.filter((ride) => ride.status === "Cancelled").length)} label="Cancelled" onPress={() => navigation.navigate("Activity")} />
           </View>
         </LinearGradient>
 
@@ -162,15 +167,15 @@ export function ProfileScreen({ navigation }: Props) {
             </View>
             <Text style={styles.walletLabel}>WALLET</Text>
             <Text style={styles.walletValue}>{inr(store.wallet)}</Text>
-            <Text style={styles.walletSub}>Add money</Text>
+            <Text style={styles.walletSub}>Balance only</Text>
           </Pressable>
-          <Pressable onPress={() => navigation.navigate("Lounge", { section: "rewards" })} style={({ pressed }) => [styles.walletCard, pressed && { borderColor: colors.gold }]}>
+          <Pressable onPress={() => navigation.navigate("Activity")} style={({ pressed }) => [styles.walletCard, pressed && { borderColor: colors.gold }]}>
             <View style={styles.walletIcon}>
-              <Text style={styles.coinR}>R</Text>
+              <Ionicons name="time" size={18} color={colors.night} />
             </View>
-            <Text style={styles.walletLabel}>COINS</Text>
-            <Text style={styles.walletValue}>{store.coins}</Text>
-            <Text style={styles.walletSub}>{coinValue ? `Worth ${inr(coinValue)}` : `${REDEEM_COINS - store.coins} to your first ₹${REDEEM_VALUE}`}</Text>
+            <Text style={styles.walletLabel}>RIDES</Text>
+            <Text style={styles.walletValue}>{store.rides.length}</Text>
+            <Text style={styles.walletSub}>Trip history</Text>
           </Pressable>
         </View>
 

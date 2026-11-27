@@ -26,6 +26,7 @@
     },
     "android": {
       "package": "com.roveya.rider",
+      "versionCode": 2,
       "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION", "ACCESS_BACKGROUND_LOCATION", "FOREGROUND_SERVICE", "FOREGROUND_SERVICE_LOCATION", "CAMERA"],
       "adaptiveIcon": {
         "backgroundColor": "#12060D",
@@ -66,7 +67,8 @@
     "extra": {
       "eas": {
         "projectId": "4d6515ab-18b5-4c33-aa37-da4c279816ba"
-      }
+      },
+      "sourceCommit": "pending"
     },
     "owner": "shaikasifnawaz"
   }

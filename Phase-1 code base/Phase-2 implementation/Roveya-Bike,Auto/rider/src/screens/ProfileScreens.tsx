@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import Constants from "expo-constants";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import type { CompositeScreenProps } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -43,8 +44,8 @@ export function ProfileScreen({ navigation }: Props) {
   const captain = store.captain!;
   const [confirmOut, setConfirmOut] = useState(false);
   const armed = useRef(false);
-  const rating = average(store.feedback);
-  const orders = store.trips.filter((trip) => trip.status === "Completed").length;
+  const rating = store.captainStats?.ratingCount ? store.captainStats.ratingAvg : average(store.feedback);
+  const orders = store.captainStats?.completed ?? store.trips.filter((trip) => trip.status === "Completed").length;
   const joined = new Date(captain.joinedAt);
   const pending = Object.values(captain.docs).filter((status) => status !== "verified").length;
 
@@ -224,7 +225,7 @@ export function ProfileScreen({ navigation }: Props) {
       <View style={styles.footer}>
         <View style={styles.footerRule} />
         <Text style={styles.footerBrand}>ROVEYA</Text>
-        <Text style={page.small}>Captain app · Version 1.0.0</Text>
+        <Text style={page.small}>Captain app · Version {Constants.expoConfig?.version ?? "1.0.0"} ({String(Constants.nativeBuildVersion ?? Constants.expoConfig?.android?.versionCode ?? "—")}) · {String((Constants.expoConfig?.extra as { sourceCommit?: string } | undefined)?.sourceCommit ?? "local")}</Text>
       </View>
     </TabPage>
   );

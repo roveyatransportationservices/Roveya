@@ -23,6 +23,7 @@
     },
     "android": {
       "package": "com.roveya.customer",
+      "versionCode": 2,
       "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"],
       "adaptiveIcon": {
         "backgroundColor": "#12060D",
@@ -55,7 +56,8 @@
     "extra": {
       "eas": {
         "projectId": "10b8d517-8ce9-46d0-8bd2-7b0f98b939cf"
-      }
+      },
+      "sourceCommit": "pending"
     },
     "owner": "shaikasifnawaz"
   }

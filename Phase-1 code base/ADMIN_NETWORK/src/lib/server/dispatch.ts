@@ -66,8 +66,12 @@ export function searchExpired(elapsedSeconds: number, settings: DispatchSettings
   return elapsedSeconds >= settings.searchSeconds;
 }
 
-// A long pickup for a short city ride is not offered. Dead kilometres stay unpaid.
-export function pickupTooFar(pickupKm: number, tripKm: number) {
+export type PickupPolicy = { stagingRelax?: boolean };
+
+// Production: a long pickup for a short city ride is not offered (dead km unpaid).
+// Staging relax (explicit opt-in only): allow any captain inside the approved max 8 km ring.
+export function pickupTooFar(pickupKm: number, tripKm: number, policy: PickupPolicy = {}) {
+  if (policy.stagingRelax) return pickupKm > 8;
   return pickupKm > 3 && pickupKm > tripKm * 2;
 }
 
@@ -81,16 +85,16 @@ export type DispatchCaptain = {
   pending: boolean;
 };
 
-export function eligibleCaptains(captains: DispatchCaptain[], vehicle: string, radiusKm: number, tripKm: number) {
+export function eligibleCaptains(captains: DispatchCaptain[], vehicle: string, radiusKm: number, tripKm: number, policy: PickupPolicy = {}) {
   return captains
     .filter((captain) => captain.vehicle === vehicle && captain.approved && captain.fresh && !captain.busy && !captain.pending)
-    .filter((captain) => captain.pickupKm <= radiusKm && !pickupTooFar(captain.pickupKm, tripKm))
+    .filter((captain) => captain.pickupKm <= radiusKm && !pickupTooFar(captain.pickupKm, tripKm, policy))
     .sort((a, b) => a.pickupKm - b.pickupKm || a.id.localeCompare(b.id));
 }
 
-export function rankCaptains(captains: DispatchCaptain[], vehicle: string, radiusKm: number, tripKm: number, batch = 1) {
+export function rankCaptains(captains: DispatchCaptain[], vehicle: string, radiusKm: number, tripKm: number, batch = 1, policy: PickupPolicy = {}) {
   const size = Math.min(2, Math.max(1, batch));
-  return eligibleCaptains(captains, vehicle, radiusKm, tripKm).slice(0, size);
+  return eligibleCaptains(captains, vehicle, radiusKm, tripKm, policy).slice(0, size);
 }
 
 export function captainAvailability(input: { account: string; online: boolean; gpsFresh: boolean; offerPending: boolean; tripStatus: string | null }): CaptainAvailability {

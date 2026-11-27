@@ -4,13 +4,12 @@ import { Keyboard, Platform, Pressable, StyleSheet, Text, View } from "react-nat
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, type } from "../theme";
 
-export type AppTab = "Home" | "Pool" | "Parcel" | "Lounge" | "Account";
+export type AppTab = "Home" | "Pool" | "Parcel" | "Account";
 
 const items: { key: AppTab; label: string; icon: keyof typeof Ionicons.glyphMap; iconOn: keyof typeof Ionicons.glyphMap }[] = [
   { key: "Home", label: "Ride", icon: "home-outline", iconOn: "home" },
   { key: "Pool", label: "Pool", icon: "people-outline", iconOn: "people" },
   { key: "Parcel", label: "Parcel", icon: "cube-outline", iconOn: "cube" },
-  { key: "Lounge", label: "Lounge", icon: "sparkles-outline", iconOn: "sparkles" },
   { key: "Account", label: "Profile", icon: "person-outline", iconOn: "person" },
 ];
 

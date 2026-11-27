@@ -32,7 +32,23 @@ type ServerActive = {
   captain: { name: string; rating: number; trips: number; vehicleNo: string; vehicleName: string } | null;
 };
 const activeStatus: Record<string, ActiveTrip["status"]> = { searching: "searching", assigned: "assigned", arrived: "arrived", on_trip: "onTrip" };
-type ServerTrip = { code: string; vehicle: VehicleKind; status: string; pickup: { name: string }; drop: { name: string }; distanceKm: number; fare: number; payment: string; requestedAt: string; completedAt: string | null };
+type ServerTrip = {
+  code: string;
+  vehicle: VehicleKind;
+  status: string;
+  pickup: { name: string };
+  drop: { name: string };
+  distanceKm: number;
+  minutes?: number;
+  fare: number;
+  payment: string;
+  requestedAt: string;
+  completedAt: string | null;
+  reason?: string | null;
+  rating?: number | null;
+  ratingReceived?: number | null;
+  captain?: { name: string; vehicleNo: string; vehicleName: string } | null;
+};
 
 const ledgerLabel: Record<string, string> = { topup: "Added money", ride_payment: "Ride payment", refund: "Refund", adjustment: "Adjustment by ROVEYA", promo: "Offer credit" };
 const rideWhen = (iso: string) => new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
@@ -54,8 +70,11 @@ function fromServer(wallet: ServerWallet | null, trips: ServerTrip[] | null) {
               vehicle: trip.vehicle,
               fare: trip.status === "completed" ? trip.fare : 0,
               status: trip.status === "completed" ? "Completed" : "Cancelled",
+              reason: trip.reason ?? undefined,
               distanceKm: trip.distanceKm,
               payment: trip.payment === "upi" || trip.payment === "online" ? trip.payment : "cash",
+              rating: trip.ratingReceived ?? undefined,
+              ratingGiven: trip.rating ?? undefined,
             }),
           )
       : null,

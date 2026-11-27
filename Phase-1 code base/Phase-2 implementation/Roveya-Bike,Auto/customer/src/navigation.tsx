@@ -16,8 +16,6 @@ import { LanguageScreen, NotificationsScreen, PersonalScreen, PlacesScreen, Wall
 import { AboutScreen, ClaimsScreen, DeskScreen, DetailScreen, SafetyScreen, SupportScreen, TermsScreen } from "./screens/HelpScreens";
 import { ServicesScreen } from "./screens/ServiceScreens";
 import { ParcelFlowScreen } from "./screens/ParcelScreens";
-import { LoungeScreen } from "./screens/LoungeScreen";
-import { GameScreen, TriviaScreen } from "./screens/GameScreens";
 import { useStore } from "./store";
 import { colors, type } from "./theme";
 import { PoolScreen } from "./screens/PoolScreen";
@@ -49,16 +47,12 @@ export type CustomerStack = {
   Services: undefined;
   ComingSoon: { service: SoonService };
   ParcelFlow: undefined;
-  Trivia: undefined;
-  Game: { id: GameId };
 };
 
-export type GameId = "memory" | "2048" | "ttt";
-export type LoungeSection = "play" | "rewards" | "explore";
+export type SoonService = "pool" | "cab" | "rental";
 
 export type CustomerTabs = {
   Home: undefined;
-  Lounge: { section?: LoungeSection } | undefined;
   Account: undefined;
 };
 
@@ -81,7 +75,6 @@ function MainTabs() {
   return (
     <Tabs.Navigator tabBar={() => null} screenOptions={{ headerShown: false }}>
       <Tabs.Screen name="Home" component={HomeScreen} />
-      <Tabs.Screen name="Lounge" component={LoungeScreen} />
       <Tabs.Screen name="Account" component={ProfileScreen} />
     </Tabs.Navigator>
   );
@@ -94,9 +87,6 @@ const sectionOf: Partial<Record<string, AppTab>> = {
   Trip: "Home",
   Services: "Home",
   ParcelFlow: "Parcel",
-  Lounge: "Lounge",
-  Trivia: "Lounge",
-  Game: "Lounge",
   Account: "Account",
   Activity: "Account",
   Receipt: "Account",
@@ -177,8 +167,6 @@ export function CustomerNavigation() {
             <Stack.Screen name="Terms" component={TermsScreen} />
             <Stack.Screen name="Services" component={ServicesScreen} />
             <Stack.Screen name="Pool" component={PoolScreen} options={{ animation: "fade" }} />
-            <Stack.Screen name="Trivia" component={TriviaScreen} options={{ animation: "slide_from_right" }} />
-            <Stack.Screen name="Game" component={GameScreen} options={{ animation: "slide_from_right" }} />
           </>
         ) : (
           <>

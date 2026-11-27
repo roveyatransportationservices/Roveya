@@ -16,6 +16,7 @@ type ServerRide = {
   otp: string | null;
   cancelledBy: string | null;
   captainUserId?: string | null;
+  offRoute?: boolean;
   captain: {
     name: string;
     rating: number;
@@ -59,6 +60,7 @@ export function TripScreen({ navigation }: NativeStackScreenProps<CustomerStack,
       const patch: Partial<ActiveTrip> = {};
       if (next) patch.status = next;
       if (ride.otp) patch.otp = ride.otp;
+      if (typeof ride.offRoute === "boolean") patch.offRoute = ride.offRoute;
       const nextCaptainId = ride.captainUserId ?? null;
       if (ride.captain) {
         patch.captainUserId = nextCaptainId;

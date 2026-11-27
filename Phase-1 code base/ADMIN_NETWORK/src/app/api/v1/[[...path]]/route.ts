@@ -284,9 +284,11 @@ async function handle(req: Request, path: string[]) {
   }
   if (req.method === "GET" && (key === "wallet" || key === "captain/earnings")) {
     const who = await openSession(auth);
-    const pack = await captainEarnings(who.sub);
+    const range = url.searchParams.get("range");
+    const days = range === "today" || range === "day" ? 1 : range === "week" ? 7 : 31;
+    const pack = await captainEarnings(who.sub, days);
     if (key === "wallet") return json({ balance: pack.balance, entries: pack.entries });
-    return json({ commissionPct: pack.commissionPct, trips: pack.trips });
+    return json({ commissionPct: pack.commissionPct, trips: pack.trips, stats: pack.stats, feedback: pack.feedback });
   }
   if (req.method === "POST" && key === "captain/documents") {
     const body = await bodyOf(req);

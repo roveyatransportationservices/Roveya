@@ -6,6 +6,7 @@ import { LeafletRouteMap } from "./RouteMapLeaflet";
 import { colors } from "../theme";
 import { vehicleIcons } from "../vehicleIcons";
 
+
 export type CaptainPin = { id: string; kind: "bike" | "auto" | "cab"; latitude: number; longitude: number; heading: number };
 type Point = { latitude: number; longitude: number };
 type Edit = "pickup" | "drop";
@@ -58,10 +59,22 @@ function GoogleRouteMap({
   const path = useMemo(() => (route && route.length > 1 ? toPoints(route) : [pickup, drop]), [route, pickup.latitude, pickup.longitude, drop.latitude, drop.longitude]);
   const left = useMemo(() => (remaining && remaining.length > 1 ? toPoints(remaining) : null), [remaining]);
   const editable = mode === "plan";
+  const [follow, setFollow] = useState(true);
+
+  useEffect(() => {
+    setFollow(true);
+  }, [recenter]);
+
+  const me = captains[0];
 
   const fit = () => {
     const view = map.current;
-    if (!view) return;
+    if (!view || !follow) return;
+    // Live navigation: follow the captain pin. Manual pan/zoom only pauses camera follow.
+    if (mode === "live" && me) {
+      view.animateCamera({ center: { latitude: me.latitude, longitude: me.longitude }, zoom: 15.2 }, { duration: 450 });
+      return;
+    }
     if (mode === "search" || !showDrop) {
       view.animateCamera({ center: pickup, zoom: 15.5 }, { duration: 600 });
       return;
@@ -72,7 +85,7 @@ function GoogleRouteMap({
   useEffect(() => {
     const timer = setTimeout(fit, 250);
     return () => clearTimeout(timer);
-  }, [path, padTop, padBottom, recenter, mode, showDrop]);
+  }, [path, padTop, padBottom, recenter, mode, showDrop, follow, me?.latitude, me?.longitude]);
 
   return (
     <View style={styles.fill}>
@@ -84,6 +97,7 @@ function GoogleRouteMap({
         userInterfaceStyle="dark"
         initialRegion={{ ...pickup, latitudeDelta: 0.03, longitudeDelta: 0.03 }}
         onMapReady={fit}
+        onPanDrag={() => setFollow(false)}
         showsCompass={false}
         showsMyLocationButton={false}
         toolbarEnabled={false}
@@ -125,16 +139,37 @@ function Label({ kind, text, eta, show, editable }: { kind: Edit; text: string; 
 }
 
 // Custom marker views must redraw until the vehicle image has loaded, then stop for speed.
+// Heading is smoothed across the 0/360 wrap; tracksViewChanges stays off after the first paint
+// so coordinate updates do not remount or re-spin the image.
 function CaptainMarker({ pin }: { pin: CaptainPin }) {
   const [tracking, setTracking] = useState(true);
+  const [facing, setFacing] = useState(() => ((pin.heading % 360) + 360) % 360);
+  const lastAt = useRef({ latitude: pin.latitude, longitude: pin.longitude });
   useEffect(() => {
     setTracking(true);
-    const timer = setTimeout(() => setTracking(false), 1200);
+    const timer = setTimeout(() => setTracking(false), 900);
     return () => clearTimeout(timer);
   }, [pin.kind]);
+  useEffect(() => {
+    const next = ((pin.heading % 360) + 360) % 360;
+    const moved =
+      Math.abs(pin.latitude - lastAt.current.latitude) + Math.abs(pin.longitude - lastAt.current.longitude) > 0.00004;
+    lastAt.current = { latitude: pin.latitude, longitude: pin.longitude };
+    setFacing((prev) => {
+      const delta = ((next - prev + 540) % 360) - 180;
+      if (!moved && Math.abs(delta) <= 8) return prev;
+      return (prev + delta * (moved ? 0.4 : 0.2) + 360) % 360;
+    });
+  }, [pin.latitude, pin.longitude, pin.heading]);
   const size = iconSize[pin.kind];
   return (
-    <Marker coordinate={pin} anchor={{ x: 0.5, y: 0.5 }} rotation={pin.heading} flat tracksViewChanges={tracking}>
+    <Marker
+      coordinate={{ latitude: pin.latitude, longitude: pin.longitude }}
+      anchor={{ x: 0.5, y: 0.5 }}
+      rotation={facing}
+      flat
+      tracksViewChanges={tracking}
+    >
       <Image source={{ uri: vehicleIcons[pin.kind] }} style={{ width: size, height: size }} />
     </Marker>
   );

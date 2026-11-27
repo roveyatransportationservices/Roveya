@@ -48,6 +48,31 @@ test("a short ride does not call a captain from across the city", () => {
   assert.equal(pickupTooFar(1.2, 6), false);
 });
 
+test("staging relax allows short-trip captains inside the 8 km max only", () => {
+  assert.equal(pickupTooFar(4, 1, { stagingRelax: true }), false);
+  assert.equal(pickupTooFar(7.5, 1, { stagingRelax: true }), false);
+  assert.equal(pickupTooFar(8.1, 1, { stagingRelax: true }), true);
+  // Production policy unchanged when flag omitted.
+  assert.equal(pickupTooFar(4, 1), true);
+});
+
+test("after a near miss, a farther captain becomes eligible only when the ring expands", () => {
+  const captains = [
+    { id: "near-rejected-slot", vehicle: "bike", pickupKm: 0.5, approved: true, fresh: true, busy: false, pending: false },
+    { id: "mid", vehicle: "bike", pickupKm: 3.2, approved: true, fresh: true, busy: false, pending: false },
+  ];
+  // At 2 km (first ring) mid is outside.
+  assert.deepEqual(eligibleCaptains(captains.filter((c) => c.id === "mid"), "bike", 2, 5).map((c) => c.id), []);
+  // Climbing to 4 km must surface the mid captain without waiting on wall-clock.
+  assert.deepEqual(eligibleCaptains(captains.filter((c) => c.id === "mid"), "bike", 4, 5).map((c) => c.id), ["mid"]);
+});
+
+test("staging relax surfaces a 4 km captain on a short trip inside the 8 km ring", () => {
+  const far = [{ id: "b", vehicle: "bike", pickupKm: 4, approved: true, fresh: true, busy: false, pending: false }];
+  assert.deepEqual(eligibleCaptains(far, "bike", 8, 1).map((c) => c.id), []);
+  assert.deepEqual(eligibleCaptains(far, "bike", 8, 1, { stagingRelax: true }).map((c) => c.id), ["b"]);
+});
+
 test("availability follows the ride, not the phone alone", () => {
   assert.equal(captainAvailability({ account: "suspended", online: true, gpsFresh: true, offerPending: false, tripStatus: null }), "SUSPENDED");
   assert.equal(captainAvailability({ account: "active", online: false, gpsFresh: true, offerPending: false, tripStatus: null }), "OFFLINE");

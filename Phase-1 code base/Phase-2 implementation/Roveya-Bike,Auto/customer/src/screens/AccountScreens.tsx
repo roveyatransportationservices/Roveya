@@ -9,7 +9,6 @@ import { FlowCta, FlowSum, type FlowIcon } from "../components/StepShell";
 import { fallbackHere, places } from "../data";
 import { hasPoint, resolvePlace, searchAddresses } from "../geocode";
 import { inr } from "../geo";
-import { REDEEM_COINS, REDEEM_VALUE } from "../lounge";
 import { clock, shortDay } from "../pool";
 import { useStore, type Prefs } from "../store";
 import { colors, type } from "../theme";
@@ -35,7 +34,6 @@ export function WalletScreen({ navigation }: NativeStackScreenProps<CustomerStac
   const [note, setNote] = useState("");
   const typed = custom ? Number(custom) : amount;
   const valid = Number.isFinite(typed) && typed >= MIN_TOPUP && typed <= MAX_TOPUP;
-  const coinValue = Math.floor(store.coins / REDEEM_COINS) * REDEEM_VALUE;
   const spent = store.walletLog.filter((entry) => entry.amount < 0).reduce((sum, entry) => sum - entry.amount, 0);
 
   const [paying, setPaying] = useState(false);
@@ -112,10 +110,10 @@ export function WalletScreen({ navigation }: NativeStackScreenProps<CustomerStac
             <Text style={page.small}>Paid with wallet</Text>
           </View>
           <View style={styles.heroLine} />
-          <Pressable onPress={() => navigation.navigate("Tabs", { screen: "Lounge", params: { section: "rewards" } })} style={{ flex: 1, paddingLeft: 14 }}>
-            <Text style={styles.heroStatValue}>{store.coins} coins</Text>
-            <Text style={page.small}>{coinValue ? `Redeem for ${inr(coinValue)} ›` : `${REDEEM_COINS - store.coins} more for ₹${REDEEM_VALUE} ›`}</Text>
-          </Pressable>
+          <View style={{ flex: 1, paddingLeft: 14 }}>
+            <Text style={styles.heroStatValue}>{store.rides.filter((ride) => ride.status === "Completed").length}</Text>
+            <Text style={page.small}>Completed rides</Text>
+          </View>
         </View>
       </LinearGradient>
 

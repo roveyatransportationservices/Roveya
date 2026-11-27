@@ -33,6 +33,7 @@ export type PastRide = {
   distanceKm?: number;
   payment?: PayMethod;
   rating?: number;
+  ratingGiven?: number;
 };
 
 export type WalletEntry = { id: string; label: string; amount: number; at: number };
@@ -108,4 +109,5 @@ export type ActiveTrip = {
   serverId?: string;
   captainUserId?: string | null;
   captainAt?: { latitude: number; longitude: number; heading: number; updatedAt?: string | null };
+  offRoute?: boolean;
 };
